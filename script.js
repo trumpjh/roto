@@ -2,9 +2,9 @@ class LottoAnalyzer {
     constructor() {
         // 여러 CORS 프록시 서비스 준비
         this.corsProxies = [
-            'https://api.allorigins.win/raw?url=',
-            'https://cors-anywhere.herokuapp.com/',
-            'https://api.codetabs.com/v1/proxy?quest='
+            'https://api.allorigins.win/get?url=',
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://cors-proxy.htmldriven.com/?url='
         ];
         this.currentProxyIndex = 0;
         
@@ -51,10 +51,9 @@ class LottoAnalyzer {
         try {
             // 확실히 존재하는 회차로 테스트 (1000회차)
             const testRound = 1000;
-            const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + testRound)}`;
-            
-            const response = await fetch(url);
-            const data = await response.json();
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + testRound)}`);
+            const result = await response.json();
+            const data = JSON.parse(result.contents);
             
             if (data.returnValue === 'success') {
                 console.log('✅ 연결 성공!');
@@ -90,11 +89,11 @@ class LottoAnalyzer {
             this.updateStatus('최신 회차 확인 중...');
             const latestRound = await this.getLatestRound();
             
-            // 3. 1년간 데이터 수집 (52주)
-            const startRound = Math.max(1, latestRound - 51);
+            // 3. 최신 15개 회차 데이터 수집
+            const startRound = Math.max(1, latestRound - 14); // 15개 회차
             const endRound = latestRound;
             
-            this.updateStatus(`📊 ${startRound}회 ~ ${endRound}회 데이터 수집 중...`);
+            this.updateStatus(`📊 최신 15개 회차 (${startRound}회 ~ ${endRound}회) 데이터 수집 중...`);
             
             // 4. 데이터 수집
             this.lottoData = await this.fetchLottoData(startRound, endRound);
@@ -109,7 +108,7 @@ class LottoAnalyzer {
             
             // 6. 결과 표시
             this.displayAnalysisResults();
-            this.updateStatus(`✅ 분석 완료! ${this.lottoData.length}개 회차 데이터 분석됨`);
+            this.updateStatus(`✅ 분석 완료! 최신 ${this.lottoData.length}개 회차 데이터 분석됨`);
             
             // 번호 생성 버튼 활성화
             document.getElementById('generateBtn').disabled = false;
@@ -132,20 +131,15 @@ class LottoAnalyzer {
         
         console.log(`추정 최신 회차: ${estimatedRound}`);
         
-        // 추정 회차부터 역순으로 20개 회차만 확인 (속도 개선)
-        for (let round = estimatedRound; round > estimatedRound - 20; round--) {
+        // 추정 회차부터 역순으로 30개 회차 확인 (범위 확대)
+        for (let round = estimatedRound; round > estimatedRound - 30; round--) {
             try {
                 console.log(`회차 ${round} 확인 중...`);
                 
-                const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + round)}`;
-                const response = await fetch(url);
+                const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
+                const result = await response.json();
+                const data = JSON.parse(result.contents);
                 
-                if (!response.ok) {
-                    console.log(`회차 ${round}: HTTP ${response.status}`);
-                    continue;
-                }
-                
-                const data = await response.json();
                 console.log(`회차 ${round} 응답:`, data);
                 
                 if (data.returnValue === 'success' && data.drwtNo1) {
@@ -154,7 +148,7 @@ class LottoAnalyzer {
                 }
                 
                 // API 호출 제한을 위한 딜레이
-                await this.delay(200);
+                await this.delay(300);
                 
             } catch (error) {
                 console.error(`❌ 회차 ${round} 오류:`, error);
@@ -162,92 +156,92 @@ class LottoAnalyzer {
             }
         }
         
-        // 기본값으로 추정 회차에서 10을 뺀 값 사용
-        const fallbackRound = estimatedRound - 10;
+        // 기본값으로 추정 회차에서 5를 뺀 값 사용
+        const fallbackRound = estimatedRound - 5;
         console.log(`⚠️ 최신 회차를 찾을 수 없어 기본값 사용: ${fallbackRound}회`);
         return fallbackRound;
     }
     
-    async fetchWithFallback(url) {
-        for (let i = 0; i < this.corsProxies.length; i++) {
-            try {
-                this.currentProxyIndex = i;
-                this.updateProxy();
-                
-                const response = await fetch(url);
-                if (response.ok) {
-                    return response;
-                }
-            } catch (error) {
-                console.log(`프록시 ${i + 1} 실패, 다음 프록시 시도...`);
-                continue;
-            }
-        }
-        
-        throw new Error('모든 프록시 서비스 실패');
-    }
-    
     async fetchLottoData(startRound, endRound) {
         const data = [];
-        const batchSize = 5; // 동시 요청 수 제한
+        const totalRounds = endRound - startRound + 1;
         
-        for (let i = startRound; i <= endRound; i += batchSize) {
-            const promises = [];
+        console.log(`${startRound}회부터 ${endRound}회까지 ${totalRounds}개 회차 수집 시작`);
+        
+        // 순차적으로 데이터 수집 (안정성 향상)
+        for (let round = startRound; round <= endRound; round++) {
+            const roundData = await this.fetchSingleRound(round);
             
-            for (let j = i; j < Math.min(i + batchSize, endRound + 1); j++) {
-                promises.push(this.fetchSingleRound(j));
+            if (roundData) {
+                data.push(roundData);
+                console.log(`✅ 회차 ${round} 수집 완료: ${roundData.numbers}`);
+            } else {
+                console.log(`❌ 회차 ${round} 수집 실패`);
             }
             
-            const results = await Promise.allSettled(promises);
-            
-            results.forEach(result => {
-                if (result.status === 'fulfilled' && result.value) {
-                    data.push(result.value);
-                }
-            });
-            
             // 진행률 업데이트
-            const progress = Math.round(((i - startRound + batchSize) / (endRound - startRound + 1)) * 100);
-            this.updateStatus(`데이터 수집 중... ${Math.min(progress, 100)}%`);
+            const progress = Math.round(((round - startRound + 1) / totalRounds) * 100);
+            this.updateStatus(`데이터 수집 중... ${progress}% (${round}회)`);
             
             // API 호출 제한을 위한 딜레이
-            await this.delay(200);
+            await this.delay(400);
         }
         
+        console.log(`총 ${data.length}개 회차 데이터 수집 완료`);
         return data.sort((a, b) => a.round - b.round);
     }
     
     async fetchSingleRound(round) {
         try {
-            const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + round)}`;
-            const response = await fetch(url);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.returnValue === 'success' && data.drwtNo1) {
-                const numbers = [
-                    data.drwtNo1, data.drwtNo2, data.drwtNo3,
-                    data.drwtNo4, data.drwtNo5, data.drwtNo6
-                ];
+            // 여러 방법으로 시도
+            const methods = [
+                // 방법 1: allorigins 사용
+                async () => {
+                    const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
+                    const result = await response.json();
+                    return JSON.parse(result.contents);
+                },
                 
-                if (numbers.every(n => n && n >= 1 && n <= 45)) {
-                    return {
-                        round: round,
-                        date: data.drwNoDate,
-                        numbers: numbers,
-                        bonus: data.bnusNo
-                    };
+                // 방법 2: thingproxy 사용
+                async () => {
+                    const response = await fetch(`https://thingproxy.freeboard.io/fetch/${this.originalUrl}${round}`);
+                    return await response.json();
+                }
+            ];
+            
+            // 각 방법을 순서대로 시도
+            for (let i = 0; i < methods.length; i++) {
+                try {
+                    console.log(`회차 ${round}: 방법 ${i + 1} 시도`);
+                    const data = await methods[i]();
+                    
+                    if (data && data.returnValue === 'success' && data.drwtNo1) {
+                        const numbers = [
+                            data.drwtNo1, data.drwtNo2, data.drwtNo3,
+                            data.drwtNo4, data.drwtNo5, data.drwtNo6
+                        ];
+                        
+                        if (numbers.every(n => n && n >= 1 && n <= 45)) {
+                            return {
+                                round: round,
+                                date: data.drwNoDate,
+                                numbers: numbers,
+                                bonus: data.bnusNo
+                            };
+                        }
+                    }
+                } catch (error) {
+                    console.log(`회차 ${round} 방법 ${i + 1} 실패:`, error.message);
+                    continue;
                 }
             }
+            
+            return null;
+            
         } catch (error) {
-            console.error(`Round ${round} fetch error:`, error);
+            console.error(`Round ${round} 전체 오류:`, error);
+            return null;
         }
-        
-        return null;
     }
     
     analyzeData(data) {
@@ -363,7 +357,7 @@ class LottoAnalyzer {
         });
     }
     
-     displayRangeChart() {
+    displayRangeChart() {
         const ctx = document.getElementById('rangeChart').getContext('2d');
         
         new Chart(ctx, {
@@ -421,7 +415,7 @@ class LottoAnalyzer {
                 freq < minFreq ? [num, freq] : [minNum, minFreq], ['1', 999]);
         
         const html = `
-            <h3>📊 분석 요약</h3>
+            <h3>📊 최신 15개 회차 분석 요약</h3>
             <div class="stats-grid">
                 <div class="stat-item">
                     <div class="stat-value">${totalRounds}</div>
@@ -447,6 +441,10 @@ class LottoAnalyzer {
                     <div class="stat-value">${this.analysis.consecutive}</div>
                     <div class="stat-label">연속번호 포함 회차</div>
                 </div>
+            </div>
+            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; text-align: center;">
+                <strong>📅 분석 기간: 최신 15개 회차</strong><br>
+                <small>더 많은 데이터가 필요하면 회차 수를 늘려보세요!</small>
             </div>
         `;
         
@@ -509,7 +507,7 @@ class LottoAnalyzer {
     generateHotNumbers() {
         const hotNumbers = Object.entries(this.analysis.frequency)
             .sort(([,a], [,b]) => b - a)
-            .slice(0, 25)
+            .slice(0, 20) // 15개 회차이므로 풀을 20개로 줄임
             .map(([num]) => parseInt(num));
         
         const sets = [];
@@ -527,7 +525,7 @@ class LottoAnalyzer {
     generateColdNumbers() {
         const coldNumbers = Object.entries(this.analysis.frequency)
             .sort(([,a], [,b]) => a - b)
-            .slice(0, 25)
+            .slice(0, 20) // 15개 회차이므로 풀을 20개로 줄임
             .map(([num]) => parseInt(num));
         
         const sets = [];
@@ -543,19 +541,19 @@ class LottoAnalyzer {
     }
     
     generateAINumbers() {
-        const hotTop10 = Object.entries(this.analysis.frequency)
+        const hotTop8 = Object.entries(this.analysis.frequency)
             .sort(([,a], [,b]) => b - a)
-            .slice(0, 10)
+            .slice(0, 8) // 15개 회차에 맞게 조정
             .map(([num]) => parseInt(num));
         
         const mediumFreq = Object.entries(this.analysis.frequency)
             .sort(([,a], [,b]) => b - a)
-            .slice(10, 30)
+            .slice(8, 20) // 15개 회차에 맞게 조정
             .map(([num]) => parseInt(num));
         
         const coldSelection = Object.entries(this.analysis.frequency)
             .sort(([,a], [,b]) => a - b)
-            .slice(0, 10)
+            .slice(0, 8) // 15개 회차에 맞게 조정
             .map(([num]) => parseInt(num));
         
         const sets = [];
@@ -564,7 +562,7 @@ class LottoAnalyzer {
             
             // 자주 나온 번호에서 2-3개
             const hotCount = Math.random() < 0.5 ? 2 : 3;
-            numbers.push(...this.getRandomSample(hotTop10, hotCount));
+            numbers.push(...this.getRandomSample(hotTop8, hotCount));
             
             // 중간 빈도에서 2개
             const availableMedium = mediumFreq.filter(n => !numbers.includes(n));
