@@ -98,7 +98,63 @@
                 <div class="card">
                     <h3>🎯 AI 종합 분석 추천 번호</h3>
                     <p class="description">빈도, 구간 균형, 홀짝 균형을 종합적으로 고려한 추천 번호입니다.</p>
-                    <div id="aiRecommendations" class="lotto-sets">
+                                      // ...existing code...
+                    
+                    // 최신 회차 번호 가져오기 (예시: 903회 이후 최신 회차 자동 탐색)
+                    async function getLatestDrawNo() {
+                        let drawNo = 1100; // 대략 최신 회차 예상값
+                        while (drawNo > 0) {
+                            const res = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drawNo}`);
+                            const data = await res.json();
+                            if (data.returnValue === "success") return drawNo;
+                            drawNo--;
+                        }
+                        return null;
+                    }
+                    
+                    // 특정 회차의 당첨번호 가져오기
+                    async function fetchLottoNumbers(drawNo) {
+                        const res = await fetch(`https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=${drawNo}`);
+                        const data = await res.json();
+                        if (data.returnValue !== "success") return null;
+                        // 1~6번 + 보너스 번호
+                        return [
+                            data.drwtNo1, data.drwtNo2, data.drwtNo3,
+                            data.drwtNo4, data.drwtNo5, data.drwtNo6,
+                            data.bnusNo
+                        ];
+                    }
+                    
+                    // 최근 1년(약 52주)간 당첨번호 데이터 수집
+                    async function fetchRecentLottoData() {
+                        const latest = await getLatestDrawNo();
+                        const results = [];
+                        for (let i = 0; i < 52; i++) {
+                            const nums = await fetchLottoNumbers(latest - i);
+                            if (nums) results.push(nums);
+                        }
+                        return results;
+                    }
+                    
+                    // 분석 버튼 클릭 시 API로 데이터 수집
+                    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+                        document.getElementById('loading').style.display = 'flex';
+                        const lottoData = await fetchRecentLottoData();
+                        document.getElementById('loading').style.display = 'none';
+                        // lottoData: [[1,2,3,4,5,6,7], ...] 형태
+                        // 여기서 분석/차트/추천 로직 호출
+                        analyzeLottoData(lottoData);
+                        document.getElementById('generateBtn').disabled = false;
+                    });
+                    
+                    // 분석/추천 함수 예시 (lottoData를 활용)
+                    function analyzeLottoData(lottoData) {
+                        // 번호 빈도, 홀짝, 구간, 합계 등 분석
+                        // Chart.js로 시각화, 추천번호 생성 등
+                        // ...여기에 기존 분석/추천 코드 연결...
+                    }
+                    
+                    // ...existing code...  <div id="aiRecommendations" class="lotto-sets">
                         <!-- AI 추천 번호 세트들 -->
                     </div>
                 </div>
