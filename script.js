@@ -1,11 +1,27 @@
 class LottoAnalyzer {
     constructor() {
-        this.baseUrl = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=";
+        // 여러 CORS 프록시 서비스 준비
+        this.corsProxies = [
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/',
+            'https://api.codetabs.com/v1/proxy?quest='
+        ];
+        this.currentProxyIndex = 0;
+        
+        this.originalUrl = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=";
+        this.updateProxy();
+        
         this.lottoData = [];
         this.analysis = {};
         this.isAnalyzing = false;
         
         this.initializeEventListeners();
+    }
+    
+    updateProxy() {
+        this.corsProxy = this.corsProxies[this.currentProxyIndex];
+        this.baseUrl = this.corsProxy + encodeURIComponent(this.originalUrl);
+        console.log(`현재 프록시: ${this.corsProxy}`);
     }
     
     initializeEventListeners() {
@@ -28,40 +44,79 @@ class LottoAnalyzer {
         document.getElementById(tabName).classList.add('active');
     }
     
+    async testConnection() {
+        console.log('🔍 연결 테스트 시작...');
+        this.updateStatus('연결 상태 확인 중...');
+        
+        try {
+            // 확실히 존재하는 회차로 테스트 (1000회차)
+            const testRound = 1000;
+            const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + testRound)}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.returnValue === 'success') {
+                console.log('✅ 연결 성공!');
+                this.updateStatus('연결 성공! 데이터 분석을 시작할 수 있습니다.');
+                return true;
+            } else {
+                console.log('❌ API 응답 오류:', data);
+                this.updateStatus('API 응답에 문제가 있습니다.');
+                return false;
+            }
+            
+        } catch (error) {
+            console.error('❌ 연결 실패:', error);
+            this.updateStatus('연결에 실패했습니다. 네트워크를 확인해주세요.');
+            return false;
+        }
+    }
+    
     async startAnalysis() {
         if (this.isAnalyzing) return;
         
         this.isAnalyzing = true;
         this.showLoading(true);
-        this.updateStatus('최신 회차 확인 중...');
         
         try {
-            // 1. 최신 회차 확인
+            // 1. 연결 테스트
+            const connectionOk = await this.testConnection();
+            if (!connectionOk) {
+                throw new Error('연결 테스트 실패');
+            }
+            
+            // 2. 최신 회차 확인
+            this.updateStatus('최신 회차 확인 중...');
             const latestRound = await this.getLatestRound();
             
-            // 2. 1년간 데이터 수집 (52주)
+            // 3. 1년간 데이터 수집 (52주)
             const startRound = Math.max(1, latestRound - 51);
             const endRound = latestRound;
             
-            this.updateStatus(`${startRound}회 ~ ${endRound}회 데이터 수집 중...`);
+            this.updateStatus(`📊 ${startRound}회 ~ ${endRound}회 데이터 수집 중...`);
             
-            // 3. 데이터 수집
+            // 4. 데이터 수집
             this.lottoData = await this.fetchLottoData(startRound, endRound);
             
-            // 4. 데이터 분석
-            this.updateStatus('데이터 분석 중...');
+            if (this.lottoData.length === 0) {
+                throw new Error('데이터를 가져올 수 없습니다.');
+            }
+            
+            // 5. 데이터 분석
+            this.updateStatus('🔍 데이터 분석 중...');
             this.analysis = this.analyzeData(this.lottoData);
             
-            // 5. 결과 표시
+            // 6. 결과 표시
             this.displayAnalysisResults();
-            this.updateStatus(`분석 완료! ${this.lottoData.length}개 회차 데이터 분석됨`);
+            this.updateStatus(`✅ 분석 완료! ${this.lottoData.length}개 회차 데이터 분석됨`);
             
             // 번호 생성 버튼 활성화
             document.getElementById('generateBtn').disabled = false;
             
         } catch (error) {
             console.error('분석 중 오류:', error);
-            this.updateStatus('분석 중 오류가 발생했습니다. 다시 시도해주세요.');
+            this.updateStatus(`❌ ${error.message} 다시 시도해주세요.`);
         } finally {
             this.showLoading(false);
             this.isAnalyzing = false;
@@ -69,23 +124,67 @@ class LottoAnalyzer {
     }
     
     async getLatestRound() {
-        // 대략적인 최신 회차부터 확인
-        const estimatedRound = 1150;
+        // 현재 날짜 기준으로 더 정확한 추정
+        const currentDate = new Date();
+        const startDate = new Date('2002-12-07'); // 로또 1회차 날짜
+        const diffWeeks = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 7));
+        const estimatedRound = diffWeeks + 1;
         
-        for (let round = estimatedRound; round > estimatedRound - 50; round--) {
+        console.log(`추정 최신 회차: ${estimatedRound}`);
+        
+        // 추정 회차부터 역순으로 20개 회차만 확인 (속도 개선)
+        for (let round = estimatedRound; round > estimatedRound - 20; round--) {
             try {
-                const response = await fetch(`${this.baseUrl}${round}`);
-                const data = await response.json();
+                console.log(`회차 ${round} 확인 중...`);
                 
-                if (data.returnValue === 'success') {
+                const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + round)}`;
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    console.log(`회차 ${round}: HTTP ${response.status}`);
+                    continue;
+                }
+                
+                const data = await response.json();
+                console.log(`회차 ${round} 응답:`, data);
+                
+                if (data.returnValue === 'success' && data.drwtNo1) {
+                    console.log(`✅ 최신 회차 발견: ${round}회`);
                     return round;
                 }
+                
+                // API 호출 제한을 위한 딜레이
+                await this.delay(200);
+                
             } catch (error) {
+                console.error(`❌ 회차 ${round} 오류:`, error);
                 continue;
             }
         }
         
-        return 1100; // 기본값
+        // 기본값으로 추정 회차에서 10을 뺀 값 사용
+        const fallbackRound = estimatedRound - 10;
+        console.log(`⚠️ 최신 회차를 찾을 수 없어 기본값 사용: ${fallbackRound}회`);
+        return fallbackRound;
+    }
+    
+    async fetchWithFallback(url) {
+        for (let i = 0; i < this.corsProxies.length; i++) {
+            try {
+                this.currentProxyIndex = i;
+                this.updateProxy();
+                
+                const response = await fetch(url);
+                if (response.ok) {
+                    return response;
+                }
+            } catch (error) {
+                console.log(`프록시 ${i + 1} 실패, 다음 프록시 시도...`);
+                continue;
+            }
+        }
+        
+        throw new Error('모든 프록시 서비스 실패');
     }
     
     async fetchLottoData(startRound, endRound) {
@@ -120,10 +219,16 @@ class LottoAnalyzer {
     
     async fetchSingleRound(round) {
         try {
-            const response = await fetch(`${this.baseUrl}${round}`);
+            const url = `${this.corsProxy}${encodeURIComponent(this.originalUrl + round)}`;
+            const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
             const data = await response.json();
             
-            if (data.returnValue === 'success') {
+            if (data.returnValue === 'success' && data.drwtNo1) {
                 const numbers = [
                     data.drwtNo1, data.drwtNo2, data.drwtNo3,
                     data.drwtNo4, data.drwtNo5, data.drwtNo6
@@ -258,7 +363,7 @@ class LottoAnalyzer {
         });
     }
     
-    displayRangeChart() {
+     displayRangeChart() {
         const ctx = document.getElementById('rangeChart').getContext('2d');
         
         new Chart(ctx, {
@@ -335,8 +440,6 @@ class LottoAnalyzer {
                     <div class="stat-label">최소 출현 번호 (${leastFrequent[1]}회)</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value">${avgFreq.toFixed(1)}</div>
-                    <div class="stat-label">평균
                     <div class="stat-value">${avgFreq.toFixed(1)}</div>
                     <div class="stat-label">평균 출현 횟수</div>
                 </div>
@@ -550,7 +653,13 @@ class LottoAnalyzer {
     }
     
     updateStatus(message) {
-        document.getElementById('status').textContent = message;
+        const statusElement = document.getElementById('status');
+        statusElement.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <span>${message}</span>
+                ${message.includes('중...') ? '<div class="spinner"></div>' : ''}
+            </div>
+        `;
     }
     
     delay(ms) {
