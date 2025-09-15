@@ -185,3 +185,13 @@
     <script src="script.js"></script>
 </body>
 </html>
+<!-- CORS 프록시 사용을 위한 수정된 script.js -->
+<script>
+// 기존 LottoAnalyzer 클래스 앞에 추가
+const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+// 또는
+// const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
+
+// LottoAnalyzer 클래스의 constructor에서 baseUrl 수정
+// this.baseUrl = CORS_PROXY + "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=";
+</script>
