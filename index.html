@@ -93,64 +93,33 @@
                 </div>
             </div>
 
-            <!-- AI 추천 탭 (수정됨) -->
-            <div id="recommended" class="tab-panel">
-                <!-- 새로 추가: 최신 15개 회차 히트맵 분석 -->
-                <div class="card">
-                    <h3>📊 최신 15개 회차 마킹 분석</h3>
-                    <p class="description">최신 15개 회차의 당첨번호를 로또 용지 형식으로 시각화합니다.</p>
-                    <div id="recentDrawsSheet" class="recent-draws-sheet">
-                        <!-- 최신 회차 마킹이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-
-                <!-- 새로 추가: 확률 높은 번호 TOP 5 -->
-                <div class="card">
-                    <h3>🔮 다음 회차 확률 높은 번호 TOP 5</h3>
-                    <p class="description">AI 알고리즘이 분석한 다음 회차 출현 확률이 높은 번호들입니다.</p>
-                    <div id="predictionNumbers" class="prediction-numbers">
-                        <!-- 예측 번호들이 여기에 표시됩니다 -->
-                    </div>
-                </div>
-
-                <!-- 기존: AI 종합 분석 추천 번호 -->
-                <div class="card">
-                    <h3>🎯 AI 종합 분석 추천 번호</h3>
-                    <p class="description">빈도, 구간 균형, 홀짝 균형을 종합적으로 고려한 추천 번호입니다.</p>
-                    <div id="aiRecommendations" class="lotto-sets">
-                        <!-- AI 추천 번호 세트들 -->
-                    </div>
-                </div>
-
-                <!-- 새로 추가: 확률 기반 추천 조합 -->
-                <div class="card">
-                    <h3>🎲 확률 기반 추천 조합</h3>
-                    <p class="description">확률 높은 번호 5개를 포함한 추천 조합입니다.</p>
-                    <div id="probabilityRecommendations" class="lotto-sets">
-                        <!-- 확률 기반 추천 조합들 -->
-                    </div>
-                </div>
-
-                <!-- 기존: 로또 용지 마킹 형식 -->
-                <div class="card">
-                    <h3>📝 로또 용지 마킹 형식</h3>
-                    <p class="description">아래 번호들을 실제 로또 용지에 마킹하세요!</p>
-                    <div id="lottoSheet" class="lotto-sheet">
-                        <!-- 로또 용지가 여기에 표시됩니다 -->
-                    </div>
-                </div>
-
-                <!-- 기존: 균형잡힌 전략 번호 -->
-                <div class="card">
-                    <h3>⚖️ 균형잡힌 전략 번호</h3>
-                    <p class="description">각 구간(1-15, 16-30, 31-45)에서 균등하게 선택한 번호입니다.</p>
-                    <div id="balancedRecommendations" class="lotto-sets">
-                        <!-- 균형잡힌 번호 세트들 -->
-                    </div>
-                </div>
-            </div>
+            <!-- AI 추천 탭 (완전 수정) -->
+<div id="recommended" class="tab-panel">
+    <!-- AI 종합 분석 추천 번호 (수정됨) -->
+    <div class="card">
+        <h3>🎯 AI 종합 분석 추천 번호</h3>
+        <p class="description">최신 15회차 로또 용지 마킹 위치를 기반으로 분석한 추천 번호입니다.</p>
+        
+        <!-- 마킹 위치 분석 표시 -->
+        <div id="markingAnalysis" class="marking-analysis">
+            <!-- 마킹 위치 분석이 여기에 표시됩니다 -->
         </div>
+        
+        <!-- AI 추천 번호 세트들 -->
+        <div id="aiRecommendations" class="lotto-sets">
+            <!-- AI 추천 번호 세트들 -->
+        </div>
+    </div>
 
+    <!-- 균형잡힌 전략 번호 (유지) -->
+    <div class="card">
+        <h3>⚖️ 균형잡힌 전략 번호</h3>
+        <p class="description">각 구간(1-15, 16-30, 31-45)에서 균등하게 선택한 번호입니다.</p>
+        <div id="balancedRecommendations" class="lotto-sets">
+            <!-- 균형잡힌 번호 세트들 -->
+        </div>
+    </div>
+</div>
         <footer>
             <div class="warning">
                 <h4>⚠️ 중요 안내사항</h4>

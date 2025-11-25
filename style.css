@@ -1010,3 +1010,199 @@ button:focus,
 ::-webkit-scrollbar-thumb:hover {
     background: #5a6fd8;
 }
+/* 기존 CSS 끝에 추가 */
+
+/* 마킹 위치 분석 스타일 */
+.marking-analysis {
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 10px;
+    padding: 20px;
+    margin: 20px 0;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.marking-header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #667eea;
+}
+
+.marking-title {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.marking-subtitle {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.position-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 3px;
+    max-width: 450px;
+    margin: 20px auto;
+}
+
+.position-cell {
+    width: 45px;
+    height: 45px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8rem;
+    background: white;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.position-cell:hover {
+    transform: scale(1.05);
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.position-number {
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.position-count {
+    font-size: 0.7rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+.position-percentage {
+    font-size: 0.6rem;
+    color: #999;
+}
+
+/* 마킹 위치별 색상 */
+.position-0 { background: #f8f9fa; }
+.position-1 { background: #fff3cd; border-color: #ffc107; }
+.position-2 { background: #d4edda; border-color: #28a745; }
+.position-3 { background: #cce5ff; border-color: #007bff; }
+.position-4 { background: #f8d7da; border-color: #dc3545; }
+.position-5 { background: #e2e3e5; border-color: #6c757d; }
+.position-high { background: #667eea; color: white; border-color: #667eea; }
+
+.analysis-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.summary-item {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    border-left: 4px solid #667eea;
+}
+
+.summary-title {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.summary-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #667eea;
+}
+
+.summary-description {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.hot-positions {
+    background: #e8f5e8;
+    border-left-color: #28a745;
+}
+
+.cold-positions {
+    background: #e3f2fd;
+    border-left-color: #2196f3;
+}
+
+.pattern-positions {
+    background: #fff3e0;
+    border-left-color: #ff9800;
+}
+
+/* 추천 이유 표시 */
+.recommendation-reason {
+    background: #e3f2fd;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 15px 0;
+    border-left: 4px solid #2196f3;
+}
+
+.reason-title {
+    font-weight: bold;
+    color: #1976d2;
+    margin-bottom: 10px;
+}
+
+.reason-list {
+    list-style: none;
+    padding: 0;
+}
+
+.reason-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.reason-item:last-child {
+    border-bottom: none;
+}
+
+.reason-text {
+    color: #333;
+}
+
+.reason-score {
+    background: #2196f3;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .position-grid {
+        grid-template-columns: repeat(5, 1fr);
+        max-width: 300px;
+    }
+    
+    .position-cell {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .analysis-summary {
+        grid-template-columns: 1fr;
+    }
+}
