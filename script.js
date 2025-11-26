@@ -1175,4 +1175,17 @@ function renderAiRecommendations(lottoData, containerId = 'aiRecommendations', s
 //     if (window.latestLottoData) renderAiRecommendations(window.latestLottoData, 'aiRecommendations', 5);
 // });
 
+// 페이지 로드 시 분석기 인스턴스 생성
+window.addEventListener('DOMContentLoaded', () => {
+    try {
+        const lottoAnalyzer = new LottoAnalyzer();
+        // 디버깅을 위해 전역에 노출
+        window.lottoAnalyzer = lottoAnalyzer;
+        // 초기 상태 표시 업데이트
+        lottoAnalyzer.updateStatus('준비 완료. "데이터 분석 시작" 버튼을 눌러주세요.');
+    } catch (e) {
+        console.error('LottoAnalyzer 초기화 실패:', e);
+    }
+});
+
 
