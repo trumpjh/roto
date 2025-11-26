@@ -977,9 +977,118 @@ getColumnBasedAnalysis(numbers, positionFrequency, columns) {
     }
 }
 
-// 앱 초기화
-document.addEventListener('DOMContentLoaded', () => {
-    new LottoAnalyzer();
-});
+/**
+ * lottoData: [[n1,n2,n3,n4,n5,n6,bonus], ...] 형태의 최근 당첨 데이터
+ * setsCount: 생성할 추천 세트 수 (기본 5)
+ * 제약: 각 세트의 1~5번째(인덱스 0~4) 위치에 들어가는 숫자는 세트들 간에 중복이 없도록 시도
+ */
+function generateAiRecommendations(lottoData, setsCount = 5) {
+    if (!Array.isArray(lottoData) || lottoData.length === 0) return [];
+    if (setsCount < 1) return [];
+    if (setsCount > 45) setsCount = 45; // 불가능한 경우 방지
+
+    // 빈도 기반 가중치 계산 (1..45)
+    const freq = new Array(46).fill(0);
+    lottoData.forEach(row => {
+        for (let i = 0; i < 6; i++) {
+            const n = row[i];
+            if (n >= 1 && n <= 45) freq[n]++;
+        }
+    });
+    const weights = new Array(46).fill(0);
+    for (let i = 1; i <= 45; i++) weights[i] = freq[i] + 1; // 최소 가중치 1
+
+    function weightedPick(excludeSet = new Set()) {
+        // 후보 목록 구성
+        const candidates = [];
+        let total = 0;
+        for (let i = 1; i <= 45; i++) {
+            if (excludeSet.has(i)) continue;
+            const w = weights[i];
+            if (w <= 0) continue;
+            candidates.push({ num: i, w });
+            total += w;
+        }
+        if (candidates.length === 0) return null;
+        let r = Math.random() * total;
+        for (const c of candidates) {
+            r -= c.w;
+            if (r <= 0) return c.num;
+        }
+        return candidates[candidates.length - 1].num;
+    }
+
+    const recommendations = [];
+    // 위치별 사용된 숫자 집합(인덱스 0..4)
+    const usedAtPos = [new Set(), new Set(), new Set(), new Set(), new Set()];
+
+    for (let s = 0; s < setsCount; s++) {
+        const setNums = [];
+        const usedInThisSet = new Set();
+
+        // 1~5번째(인덱스 0~4) 선택: 다른 세트의 동일 위치와 중복 안 나도록 시도
+        for (let pos = 0; pos < 5; pos++) {
+            // 제외할 숫자: 이미 이 세트에 들어간 숫자 OR 이미 같은 위치에서 사용된 숫자들
+            const exclude = new Set([...usedInThisSet, ...usedAtPos[pos]]);
+            let picked = weightedPick(exclude);
+            // 만약 후보가 없거나 실패하면, 동일 위치 중복 허용 없이 같은 세트 중복만 피하도록 완화
+            if (picked === null) {
+                const exclude2 = new Set(usedInThisSet);
+                picked = weightedPick(exclude2);
+            }
+            // 마지막 수단: 1..45에서 아무거나 (중복 회피)
+            if (picked === null) {
+                for (let n = 1; n <= 45; n++) {
+                    if (!usedInThisSet.has(n)) { picked = n; break; }
+                }
+            }
+            if (picked === null) break; // 매우 드문 경우
+            setNums.push(picked);
+            usedInThisSet.add(picked);
+            usedAtPos[pos].add(picked);
+        }
+
+        // 6번째 번호: 남은 숫자에서 하나 선택
+        if (setNums.length === 5) {
+            const exclude = new Set(usedInThisSet);
+            let sixth = weightedPick(exclude);
+            if (sixth === null) {
+                for (let n = 1; n <= 45; n++) {
+                    if (!exclude.has(n)) { sixth = n; break; }
+                }
+            }
+            if (sixth !== null) {
+                setNums.push(sixth);
+            }
+        }
+
+        // 보너스는 포함하지 않고 6개 번호만 사용 (원하면 추가 가능)
+        // 순서는 선택 순서(제약을 반영한 순서)를 유지합니다.
+        recommendations.push(setNums.slice(0,6));
+    }
+
+    return recommendations;
+}
+
+// AI 추천 렌더링 함수 (DOM에 표시)
+function renderAiRecommendations(lottoData, containerId = 'aiRecommendations', setsCount = 5) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const recs = generateAiRecommendations(lottoData, setsCount);
+    recs.forEach((set, idx) => {
+        const div = document.createElement('div');
+        div.className = 'lotto-set';
+        div.innerText = `추천 ${idx + 1}: ${set.join(', ')}`; // 원하는 스타일로 변경 가능
+        container.appendChild(div);
+    });
+}
+
+// 버튼 연동 예시: analyzeBtn 클릭 후 lottoData 전역에 저장했다고 가정
+// 예: window.latestLottoData = lottoData; analyzeLottoData(lottoData); renderAiRecommendations(lottoData);
+// document.getElementById('generateBtn').addEventListener('click', () => {
+//     if (window.latestLottoData) renderAiRecommendations(window.latestLottoData, 'aiRecommendations', 5);
+// });
 
 
