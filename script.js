@@ -507,64 +507,77 @@ class LottoAnalyzer {
         this.displayLottoSets('balancedRecommendations', balancedRecommendations);
     }
     
-    // 마킹 위치 분석 표시
-    displayMarkingPositionAnalysis() {
-        // 로또 용지 위치별 출현 빈도 계산
-        const positionFrequency = {};
+    // displayMarkingPositionAnalysis 함수를 다음과 같이 교체
+displayMarkingPositionAnalysis() {
+    // 로또 용지 위치별 출현 빈도 계산
+    const positionFrequency = {};
+    
+    // 모든 위치 초기화 (1-45)
+    for (let i = 1; i <= 45; i++) {
+        positionFrequency[i] = 0;
+    }
+    
+    // 최신 15개 회차 데이터로 위치별 빈도 계산
+    this.lottoData.forEach(round => {
+        round.numbers.forEach(num => {
+            positionFrequency[num]++;
+        });
+    });
+    
+    // 총 회차 수
+    const totalRounds = this.lottoData.length;
+    
+    // 위치별 분석
+    const hotPositions = [];
+    const coldPositions = [];
+    const patternPositions = [];
+    
+    Object.entries(positionFrequency).forEach(([position, count]) => {
+        const percentage = ((count / totalRounds) * 100).toFixed(1);
+        const positionData = {
+            position: parseInt(position),
+            count: count,
+            percentage: parseFloat(percentage)
+        };
         
-        // 모든 위치 초기화 (1-45)
-        for (let i = 1; i <= 45; i++) {
-            positionFrequency[i] = 0;
+        if (count >= 3) {
+            hotPositions.push(positionData);
+        } else if (count === 0) {
+            coldPositions.push(positionData);
+        } else {
+            patternPositions.push(positionData);
         }
+    });
+    
+    // HTML 생성 - 실제 로또 용지 배치 반영
+    let html = `
+        <div class="marking-header">
+            <div class="marking-title">📍 최신 ${totalRounds}회차 마킹 위치 분석</div>
+            <div class="marking-subtitle">실제 로또 용지 배치 기준 위치별 출현 빈도 분석</div>
+        </div>
         
-        // 최신 15개 회차 데이터로 위치별 빈도 계산
-        this.lottoData.forEach(round => {
-            round.numbers.forEach(num => {
-                positionFrequency[num]++;
-            });
-        });
+        <div class="real-lotto-grid">
+    `;
+    
+    // 실제 로또 용지 배치에 따른 그리드 생성
+    const lottoLayout = [
+        [1, 2, 3, 4, 5, 6, 7],           // 1열: 1~7
+        [8, 9, 10, 11, 12, 13],          // 2열: 8~13
+        [14, 15, 16, 17, 18, 19, 20],    // 3열: 14~20
+        [21, 22, 23, 24, 25, 26, 27, 28], // 4열: 21~28
+        [29, 30, 31, 32, 33, 34, 35],    // 5열: 29~35
+        [36, 37, 38, 39, 40, 41, 42],    // 6열: 36~42
+        [43, 44, 45]                     // 7열: 43~45
+    ];
+    
+    lottoLayout.forEach((row, rowIndex) => {
+        html += `<div class="lotto-row">`;
         
-        // 총 회차 수
-        const totalRounds = this.lottoData.length;
-        
-        // 위치별 분석
-        const hotPositions = [];
-        const coldPositions = [];
-        const patternPositions = [];
-        
-        Object.entries(positionFrequency).forEach(([position, count]) => {
-            const percentage = ((count / totalRounds) * 100).toFixed(1);
-            const positionData = {
-                position: parseInt(position),
-                count: count,
-                percentage: parseFloat(percentage)
-            };
-            
-            if (count >= 3) {
-                hotPositions.push(positionData);
-            } else if (count === 0) {
-                coldPositions.push(positionData);
-            } else {
-                patternPositions.push(positionData);
-            }
-        });
-        
-        // HTML 생성
-        let html = `
-            <div class="marking-header">
-                <div class="marking-title">📍 최신 ${totalRounds}회차 마킹 위치 분석</div>
-                <div class="marking-subtitle">로또 용지 위치별 출현 빈도 및 패턴 분석</div>
-            </div>
-            
-            <div class="position-grid">
-        `;
-        
-        // 1-45 위치별 셀 생성
-        for (let i = 1; i <= 45; i++) {
-            const count = positionFrequency[i];
+        row.forEach(num => {
+            const count = positionFrequency[num];
             const percentage = ((count / totalRounds) * 100).toFixed(1);
             
-            let cellClass = 'position-cell';
+            let cellClass = 'real-position-cell';
             if (count === 0) cellClass += ' position-0';
             else if (count === 1) cellClass += ' position-1';
             else if (count === 2) cellClass += ' position-2';
@@ -574,194 +587,257 @@ class LottoAnalyzer {
             else cellClass += ' position-high';
             
             html += `
-                <div class="${cellClass}" title="위치 ${i}: ${count}회 출현 (${percentage}%)">
-                    <div class="position-number">${i}</div>
+                <div class="${cellClass}" title="번호 ${num}: ${count}회 출현 (${percentage}%)">
+                    <div class="position-number">${num}</div>
                     <div class="position-count">${count}회</div>
                     <div class="position-percentage">${percentage}%</div>
                 </div>
             `;
-        }
+        });
+        
+        html += `</div>`;
+    });
+    
+    html += `
+        </div>
+        
+        <div class="column-analysis">
+            <h4>📊 열별 출현 분석</h4>
+            <div class="column-stats">
+    `;
+    
+    // 열별 통계 계산
+    const columnStats = [
+        { name: '1열 (1~7)', numbers: [1,2,3,4,5,6,7] },
+        { name: '2열 (8~13)', numbers: [8,9,10,11,12,13] },
+        { name: '3열 (14~20)', numbers: [14,15,16,17,18,19,20] },
+        { name: '4열 (21~28)', numbers: [21,22,23,24,25,26,27,28] },
+        { name: '5열 (29~35)', numbers: [29,30,31,32,33,34,35] },
+        { name: '6열 (36~42)', numbers: [36,37,38,39,40,41,42] },
+        { name: '7열 (43~45)', numbers: [43,44,45] }
+    ];
+    
+    columnStats.forEach(column => {
+        const totalAppearances = column.numbers.reduce((sum, num) => sum + positionFrequency[num], 0);
+        const avgPerNumber = (totalAppearances / column.numbers.length).toFixed(1);
         
         html += `
-            </div>
-            
-            <div class="analysis-summary">
-                <div class="summary-item hot-positions">
-                    <div class="summary-title">🔥 자주 나온 위치</div>
-                    <div class="summary-value">${hotPositions.length}개</div>
-                    <div class="summary-description">3회 이상 출현한 위치</div>
-                </div>
-                <div class="summary-item cold-positions">
-                    <div class="summary-title">❄️ 안 나온 위치</div>
-                    <div class="summary-value">${coldPositions.length}개</div>
-                    <div class="summary-description">한 번도 출현하지 않은 위치</div>
-                </div>
-                <div class="summary-item pattern-positions">
-                    <div class="summary-title">📊 중간 위치</div>
-                    <div class="summary-value">${patternPositions.length}개</div>
-                    <div class="summary-description">1-2회 출현한 위치</div>
-                </div>
-            </div>
-            
-            <div class="recommendation-reason">
-                <div class="reason-title">🤖 AI 분석 기준</div>
-                <ul class="reason-list">
-                    <li class="reason-item">
-                        <span class="reason-text">자주 나온 위치 (3회+)</span>
-                        <span class="reason-score">40%</span>
-                    </li>
-                    <li class="reason-item">
-                        <span class="reason-text">중간 빈도 위치 (1-2회)</span>
-                        <span class="reason-score">35%</span>
-                    </li>
-                    <li class="reason-item">
-                        <span class="reason-text">안 나온 위치 (0회)</span>
-                        <span class="reason-score">15%</span>
-                    </li>
-                    <li class="reason-item">
-                        <span class="reason-text">구간 균형 (1-15, 16-30, 31-45)</span>
-                        <span class="reason-score">10%</span>
-                    </li>
-                </ul>
+            <div class="column-stat">
+                <div class="column-name">${column.name}</div>
+                <div class="column-total">총 ${totalAppearances}회</div>
+                <div class="column-avg">평균 ${avgPerNumber}회/번호</div>
             </div>
         `;
+    });
+    
+    html += `
+            </div>
+        </div>
         
-        document.getElementById('markingAnalysis').innerHTML = html;
+        <div class="analysis-summary">
+            <div class="summary-item hot-positions">
+                <div class="summary-title">🔥 자주 나온 위치</div>
+                <div class="summary-value">${hotPositions.length}개</div>
+                <div class="summary-description">3회 이상 출현한 위치</div>
+            </div>
+            <div class="summary-item cold-positions">
+                <div class="summary-title">❄️ 안 나온 위치</div>
+                <div class="summary-value">${coldPositions.length}개</div>
+                <div class="summary-description">한 번도 출현하지 않은 위치</div>
+            </div>
+            <div class="summary-item pattern-positions">
+                <div class="summary-title">📊 중간 위치</div>
+                <div class="summary-value">${patternPositions.length}개</div>
+                <div class="summary-description">1-2회 출현한 위치</div>
+            </div>
+        </div>
+        
+        <div class="recommendation-reason">
+            <div class="reason-title">🤖 AI 분석 기준 (실제 로또 용지 배치 반영)</div>
+            <ul class="reason-list">
+                <li class="reason-item">
+                    <span class="reason-text">자주 나온 위치 (3회+)</span>
+                    <span class="reason-score">35%</span>
+                </li>
+                <li class="reason-item">
+                    <span class="reason-text">중간 빈도 위치 (1-2회)</span>
+                    <span class="reason-score">30%</span>
+                </li>
+                <li class="reason-item">
+                    <span class="reason-text">안 나온 위치 (0회)</span>
+                    <span class="reason-score">15%</span>
+                </li>
+                <li class="reason-item">
+                    <span class="reason-text">열별 균형 (7개 열 고려)</span>
+                    <span class="reason-score">20%</span>
+                </li>
+            </ul>
+        </div>
+    `;
+    
+    document.getElementById('markingAnalysis').innerHTML = html;
+}
+
+// generatePositionBasedAI 함수도 실제 로또 용지 배치를 고려하도록 수정
+generatePositionBasedAI() {
+    const positionFrequency = {};
+    
+    // 위치별 빈도 계산
+    for (let i = 1; i <= 45; i++) {
+        positionFrequency[i] = 0;
     }
     
-    // 마킹 위치 기반 AI 추천
-    generatePositionBasedAI() {
-        const positionFrequency = {};
+    this.lottoData.forEach(round => {
+        round.numbers.forEach(num => {
+            positionFrequency[num]++;
+        });
+    });
+    
+    // 실제 로또 용지 열 정의
+    const columns = [
+        [1,2,3,4,5,6,7],           // 1열
+        [8,9,10,11,12,13],         // 2열
+        [14,15,16,17,18,19,20],    // 3열
+        [21,22,23,24,25,26,27,28], // 4열
+        [29,30,31,32,33,34,35],    // 5열
+        [36,37,38,39,40,41,42],    // 6열
+        [43,44,45]                 // 7열
+    ];
+    
+    // 위치별 점수 계산 (열 균형 고려)
+    const positionScores = {};
+    Object.entries(positionFrequency).forEach(([position, count]) => {
+        let score = 0;
         
-        // 위치별 빈도 계산
-        for (let i = 1; i <= 45; i++) {
-            positionFrequency[i] = 0;
+        // 자주 나온 위치 (35%)
+        if (count >= 3) {
+            score += count * 0.35;
+        }
+        // 중간 빈도 위치 (30%)
+        else if (count >= 1) {
+            score += count * 0.30;
+        }
+        // 안 나온 위치 (15%)
+        else {
+            score += 0.15;
         }
         
-        this.lottoData.forEach(round => {
-            round.numbers.forEach(num => {
-                positionFrequency[num]++;
-            });
+        // 열별 균형 보너스 (20%)
+        const pos = parseInt(position);
+        const columnIndex = columns.findIndex(col => col.includes(pos));
+        
+        // 각 열별로 다른 가중치 적용
+        const columnWeights = [0.18, 0.16, 0.20, 0.22, 0.20, 0.20, 0.14]; // 7개 열
+        if (columnIndex !== -1) {
+            score += columnWeights[columnIndex];
+        }
+        
+        positionScores[position] = score;
+    });
+    
+    // 점수 순으로 정렬
+    const sortedPositions = Object.entries(positionScores)
+        .sort(([,a], [,b]) => b - a)
+        .map(([pos, score]) => ({
+            position: parseInt(pos),
+            score: score,
+            frequency: positionFrequency[pos],
+            column: columns.findIndex(col => col.includes(parseInt(pos))) + 1
+        }));
+    
+    const sets = [];
+    for (let i = 0; i < 5; i++) {
+        const numbers = [];
+        
+        // 상위 25개 위치에서 선택
+        const topPositions = sortedPositions.slice(0, 25);
+        
+        // 열별 균형을 고려한 선택 (각 열에서 최소 0개, 최대 2개)
+        const columnCounts = [0, 0, 0, 0, 0, 0, 0]; // 7개 열
+        
+        // 우선 각 열에서 1개씩 선택 시도
+        columns.forEach((column, colIndex) => {
+            if (numbers.length >= 6) return;
+            
+            const availableInColumn = topPositions.filter(p => 
+                column.includes(p.position) && !numbers.includes(p.position)
+            );
+            
+            if (availableInColumn.length > 0 && columnCounts[colIndex] < 2) {
+                const selected = availableInColumn[0]; // 점수가 높은 것 선택
+                numbers.push(selected.position);
+                columnCounts[colIndex]++;
+            }
         });
         
-        // 위치별 점수 계산
-        const positionScores = {};
-        Object.entries(positionFrequency).forEach(([position, count]) => {
-            let score = 0;
+        // 부족한 경우 상위 위치에서 추가 선택
+        while (numbers.length < 6) {
+            const available = topPositions.filter(p => !numbers.includes(p.position));
             
-            // 자주 나온 위치 (40%)
-            if (count >= 3) {
-                score += count * 0.4;
-            }
-            // 중간 빈도 위치 (35%)
-            else if (count >= 1) {
-                score += count * 0.35;
-            }
-            // 안 나온 위치 (15%)
-            else {
-                score += 0.15;
-            }
-            
-            // 구간 균형 보너스 (10%)
-            const pos = parseInt(position);
-            if (pos <= 15) score += 0.1; // 1-15 구간
-            else if (pos <= 30) score += 0.08; // 16-30 구간
-            else score += 0.12; // 31-45 구간 (약간 높은 점수)
-            
-            positionScores[position] = score;
-        });
-        
-        // 점수 순으로 정렬
-        const sortedPositions = Object.entries(positionScores)
-            .sort(([,a], [,b]) => b - a)
-            .map(([pos, score]) => ({
-                position: parseInt(pos),
-                score: score,
-                frequency: positionFrequency[pos]
-            }));
-        
-        const sets = [];
-        for (let i = 0; i < 5; i++) {
-            const numbers = [];
-            
-            // 상위 20개 위치에서 선택
-            const topPositions = sortedPositions.slice(0, 20);
-            
-            // 구간별 균형을 고려한 선택
-            const ranges = [
-                { start: 1, end: 15, selected: 0, target: 2 },
-                { start: 16, end: 30, selected: 0, target: 2 },
-                { start: 31, end: 45, selected: 0, target: 2 }
-            ];
-            
-            // 각 구간에서 목표 개수만큼 선택
-            topPositions.forEach(posData => {
-                if (numbers.length >= 6) return;
+            if (available.length > 0) {
+                // 아직 2개 미만인 열의 번호 우선 선택
+                const preferredColumn = available.find(p => {
+                    const colIndex = p.column - 1;
+                    return columnCounts[colIndex] < 2;
+                });
                 
-                const pos = posData.position;
-                const range = ranges.find(r => pos >= r.start && pos <= r.end);
-                
-                if (range && range.selected < range.target) {
-                    numbers.push(pos);
-                    range.selected++;
-                }
-            });
-            
-            // 부족한 경우 상위 위치에서 추가 선택
-            while (numbers.length < 6) {
-                const available = topPositions
-                                        .filter(p => !numbers.includes(p.position))
-                    .slice(0, 10);
-                
-                if (available.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * available.length);
-                    numbers.push(available[randomIndex].position);
+                if (preferredColumn) {
+                    numbers.push(preferredColumn.position);
+                    columnCounts[preferredColumn.column - 1]++;
                 } else {
-                    break;
+                    numbers.push(available[0].position);
                 }
+            } else {
+                break;
             }
-            
-            // 정렬 및 분석 정보 생성
-            const finalNumbers = numbers.slice(0, 6).sort((a, b) => a - b);
-            const analysisInfo = this.getPositionBasedAnalysis(finalNumbers, positionFrequency);
-            
-            sets.push({
-                numbers: finalNumbers,
-                info: analysisInfo
-            });
         }
         
-        return sets;
+        // 정렬 및 분석 정보 생성
+        const finalNumbers = numbers.slice(0, 6).sort((a, b) => a - b);
+        const analysisInfo = this.getColumnBasedAnalysis(finalNumbers, positionFrequency, columns);
+        
+        sets.push({
+            numbers: finalNumbers,
+            info: analysisInfo
+        });
     }
     
-    // 위치 기반 분석 정보 생성
-    getPositionBasedAnalysis(numbers, positionFrequency) {
-        const totalRounds = this.lottoData.length;
-        
-        // 각 번호의 출현 빈도 분석
-        const frequencyAnalysis = numbers.map(num => {
-            const count = positionFrequency[num];
-            if (count >= 3) return '자주';
-            else if (count >= 1) return '중간';
-            else return '대기';
-        });
-        
-        const hotCount = frequencyAnalysis.filter(f => f === '자주').length;
-        const mediumCount = frequencyAnalysis.filter(f => f === '중간').length;
-        const coldCount = frequencyAnalysis.filter(f => f === '대기').length;
-        
-        // 구간 분포
-        const ranges = {
-            low: numbers.filter(n => n <= 15).length,
-            mid: numbers.filter(n => n > 15 && n <= 30).length,
-            high: numbers.filter(n => n > 30).length
-        };
-        
-        // 홀짝 분포
-        const oddCount = numbers.filter(n => n % 2 === 1).length;
-        const sum = numbers.reduce((a, b) => a + b, 0);
-        
-        return `위치분석: 자주${hotCount} 중간${mediumCount} 대기${coldCount} | 홀${oddCount}짝${6-oddCount} | 합계:${sum}`;
+    return sets;
+}
+
+// 열 기반 분석 정보 생성
+getColumnBasedAnalysis(numbers, positionFrequency, columns) {
+    // 각 번호의 출현 빈도 분석
+    const frequencyAnalysis = numbers.map(num => {
+        const count = positionFrequency[num];
+        if (count >= 3) return '자주';
+        else if (count >= 1) return '중간';
+        else return '대기';
+    });
+    
+    const hotCount = frequencyAnalysis.filter(f => f === '자주').length;
+    const mediumCount = frequencyAnalysis.filter(f => f === '중간').length;
+    const coldCount = frequencyAnalysis.filter(f => f === '대기').length;
+    
+    // 열별 분포
+    const columnDistribution = [0, 0, 0, 0, 0, 0, 0]; // 7개 열
+    numbers.forEach(num => {
+        const columnIndex = columns.findIndex(col => col.includes(num));
+        if (columnIndex !== -1) {
+            columnDistribution[columnIndex]++;
+        }
+    });
+    
+    const columnInfo = columnDistribution
+        .map((count, index) => count > 0 ? `${index + 1}열:${count}` : '')
+        .filter(info => info !== '')
+        .join(' ');
+    
+    // 홀짝 분포
+    const oddCount = numbers.filter(n => n % 2 === 1).length;
+    const sum = numbers.reduce((a, b) => a + b, 0);
+    
+    return `위치분석: 자주${hotCount} 중간${mediumCount} 대기${coldCount} | ${columnInfo} | 홀${oddCount}짝${6-oddCount} | 합계:${sum}`;  return `위치분석: 자주${hotCount} 중간${mediumCount} 대기${coldCount} | 홀${oddCount}짝${6-oddCount} | 합계:${sum}`;
     }
     
     generateHotNumbers() {
