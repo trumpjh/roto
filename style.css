@@ -660,22 +660,34 @@ header p {
     background: #45a049;
     transform: translateY(-2px);
 }
-
+/* 기존 footer 스타일을 완전히 교체 */
 footer {
     margin-top: 40px;
+    padding: 20px;
     text-align: center;
+    position: relative;
+    z-index: 1000;
+    clear: both;
 }
 
 .warning {
-    background: rgba(255,255,255,0.1);
-    border-radius: 10px;
-    padding: 20px;
-    color: white;
+    background: #fff3cd;
+    border: 3px solid #ffc107;
+    border-radius: 15px;
+    padding: 25px;
+    color: #856404;
+    box-shadow: 0 8px 25px rgba(255, 193, 7, 0.3);
+    max-width: 800px;
+    margin: 0 auto;
+    font-weight: 500;
 }
 
 .warning h4 {
-    margin-bottom: 10px;
-    color: #ffeb3b;
+    margin-bottom: 20px;
+    color: #dc3545;
+    font-size: 1.4rem;
+    font-weight: bold;
+    text-align: center;
 }
 
 .warning ul {
@@ -683,21 +695,26 @@ footer {
     text-align: left;
     max-width: 600px;
     margin: 0 auto;
+    padding: 0;
 }
 
 .warning li {
-    margin-bottom: 5px;
-    padding-left: 20px;
+    margin-bottom: 12px;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border-left: 4px solid #dc3545;
+    font-size: 1rem;
+    line-height: 1.6;
     position: relative;
+    display: block;
 }
 
 .warning li:before {
-    content: "•";
-    position: absolute;
-    left: 0;
-    color: #ffeb3b;
+    content: "⚠️";
+    margin-right: 10px;
+    font-size: 1.1rem;
 }
-
 /* 차트 컨테이너 */
 .chart-container {
     position: relative;
@@ -727,6 +744,20 @@ footer {
 
 /* 반응형 디자인 */
 @media (max-width: 768px) {
+    .warning {
+        margin: 20px 10px;
+        padding: 20px 15px;
+    }
+    
+    .warning h4 {
+        font-size: 1.2rem;
+    }
+    
+    .warning li {
+        font-size: 0.9rem;
+        padding: 8px 12px;
+    }
+
     .container {
         padding: 10px;
     }

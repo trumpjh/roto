@@ -678,7 +678,7 @@ displayMarkingPositionAnalysis() {
     document.getElementById('markingAnalysis').innerHTML = html;
 }
 
-// generatePositionBasedAI 함수에서 columns 배열 수정 (최종)
+// generatePositionBasedAI 함수를 완전히 교체
 generatePositionBasedAI() {
     const positionFrequency = {};
     
@@ -693,127 +693,211 @@ generatePositionBasedAI() {
         });
     });
     
-    // 정확한 로또 용지 열 정의 (최종 수정)
+    // 정확한 로또 용지 열 정의
     const columns = [
-        [1,2,3,4,5,6,7],                 // 1열: 1~7
-        [8,9,10,11,12,13,14],            // 2열: 8~14
-        [15,16,17,18,19,20,21],          // 3열: 15~21 (수정됨)
-        [22,23,24,25,26,27,28],          // 4열: 22~28 (수정됨)
-        [29,30,31,32,33,34,35],          // 5열: 29~35 (수정됨)
-        [36,37,38,39,40,41,42],          // 6열: 36~42 (수정됨)
-        [43,44,45]                       // 7열: 43~45 (수정됨)
+        [1,2,3,4,5,6,7],
+        [8,9,10,11,12,13,14],
+        [15,16,17,18,19,20,21],
+        [22,23,24,25,26,27,28],
+        [29,30,31,32,33,34,35],
+        [36,37,38,39,40,41,42],
+        [43,44,45]
     ];
     
-    // 위치별 점수 계산 (열 균형 고려)
-    const positionScores = {};
-    Object.entries(positionFrequency).forEach(([position, count]) => {
-        let score = 0;
-        
-        // 자주 나온 위치 (35%)
-        if (count >= 3) {
-            score += count * 0.35;
-        }
-        // 중간 빈도 위치 (30%)
-        else if (count >= 1) {
-            score += count * 0.30;
-        }
-        // 안 나온 위치 (15%)
-        else {
-            score += 0.15;
-        }
-        
-        // 열별 균형 보너스 (20%)
-        const pos = parseInt(position);
-        const columnIndex = columns.findIndex(col => col.includes(pos));
-        
-        // 각 열별로 균등한 가중치 적용 (모든 열이 7개씩, 마지막 열만 3개)
-        const columnWeights = [
-            0.20, // 1열 (7개): 1~7
-            0.20, // 2열 (7개): 8~14
-            0.20, // 3열 (7개): 15~21
-            0.20, // 4열 (7개): 22~28
-            0.20, // 5열 (7개): 29~35
-            0.20, // 6열 (7개): 36~42
-            0.15  // 7열 (3개): 43~45 (적은 번호로 인해 약간 낮음)
-        ];
-        
-        if (columnIndex !== -1) {
-            score += columnWeights[columnIndex];
-        }
-        
-        positionScores[position] = score;
-    });
+    // 번호들을 빈도별로 분류
+    const hotNumbers = [];      // 3회 이상
+    const mediumNumbers = [];   // 1-2회
+    const coldNumbers = [];     // 0회
     
-    // 점수 순으로 정렬
-    const sortedPositions = Object.entries(positionScores)
-        .sort(([,a], [,b]) => b - a)
-        .map(([pos, score]) => ({
-            position: parseInt(pos),
-            score: score,
-            frequency: positionFrequency[pos],
-            column: columns.findIndex(col => col.includes(parseInt(pos))) + 1
-        }));
+    for (let i = 1; i <= 45; i++) {
+        const freq = positionFrequency[i];
+        if (freq >= 3) {
+            hotNumbers.push(i);
+        } else if (freq >= 1) {
+            mediumNumbers.push(i);
+        } else {
+            coldNumbers.push(i);
+        }
+    }
+    
+    console.log('Hot numbers:', hotNumbers);
+    console.log('Medium numbers:', mediumNumbers);
+    console.log('Cold numbers:', coldNumbers);
     
     const sets = [];
-    for (let i = 0; i < 5; i++) {
-        const numbers = [];
+    
+    // 전략 1: 자주 나온 번호 위주 (4개) + 중간 번호 (2개)
+    if (sets.length < 5) {
+        const set1 = [];
+        const shuffledHot = this.shuffleArray([...hotNumbers]);
+        const shuffledMedium = this.shuffleArray([...mediumNumbers]);
         
-        // 상위 25개 위치에서 선택
-        const topPositions = sortedPositions.slice(0, 25);
+        // 자주 나온 번호에서 4개
+        for (let i = 0; i < Math.min(4, shuffledHot.length); i++) {
+            set1.push(shuffledHot[i]);
+        }
         
-        // 열별 균형을 고려한 선택 (각 열에서 최소 0개, 최대 2개)
-        const columnCounts = [0, 0, 0, 0, 0, 0, 0]; // 7개 열
-        
-        // 우선 각 열에서 1개씩 선택 시도
-        columns.forEach((column, colIndex) => {
-            if (numbers.length >= 6) return;
-            
-            const availableInColumn = topPositions.filter(p => 
-                column.includes(p.position) && !numbers.includes(p.position)
-            );
-            
-            if (availableInColumn.length > 0 && columnCounts[colIndex] < 2) {
-                const selected = availableInColumn[0]; // 점수가 높은 것 선택
-                numbers.push(selected.position);
-                columnCounts[colIndex]++;
-            }
-        });
-        
-        // 부족한 경우 상위 위치에서 추가 선택
-        while (numbers.length < 6) {
-            const available = topPositions.filter(p => !numbers.includes(p.position));
-            
-            if (available.length > 0) {
-                // 아직 2개 미만인 열의 번호 우선 선택
-                const preferredColumn = available.find(p => {
-                    const colIndex = p.column - 1;
-                    return columnCounts[colIndex] < 2;
-                });
-                
-                if (preferredColumn) {
-                    numbers.push(preferredColumn.position);
-                    columnCounts[preferredColumn.column - 1]++;
-                } else {
-                    numbers.push(available[0].position);
-                }
-            } else {
-                break;
+        // 중간 번호에서 2개
+        for (let i = 0; i < Math.min(2, shuffledMedium.length) && set1.length < 6; i++) {
+            if (!set1.includes(shuffledMedium[i])) {
+                set1.push(shuffledMedium[i]);
             }
         }
         
-        // 정렬 및 분석 정보 생성
-        const finalNumbers = numbers.slice(0, 6).sort((a, b) => a - b);
-        const analysisInfo = this.getColumnBasedAnalysis(finalNumbers, positionFrequency, columns);
+        // 부족하면 전체에서 보충
+        while (set1.length < 6) {
+            const allNumbers = Array.from({length: 45}, (_, i) => i + 1);
+            const available = allNumbers.filter(n => !set1.includes(n));
+            if (available.length > 0) {
+                set1.push(available[Math.floor(Math.random() * available.length)]);
+            } else break;
+        }
         
         sets.push({
-            numbers: finalNumbers,
-            info: analysisInfo
+            numbers: set1.sort((a, b) => a - b),
+            info: `자주나온번호위주 | ${this.getSimpleSetInfo(set1)}`
         });
     }
     
+    // 전략 2: 중간 번호 위주 (4개) + 자주 나온 번호 (2개)
+    if (sets.length < 5) {
+        const set2 = [];
+        const shuffledMedium = this.shuffleArray([...mediumNumbers]);
+        const shuffledHot = this.shuffleArray([...hotNumbers]);
+        
+        // 중간 번호에서 4개
+        for (let i = 0; i < Math.min(4, shuffledMedium.length); i++) {
+            set2.push(shuffledMedium[i]);
+        }
+        
+        // 자주 나온 번호에서 2개
+        for (let i = 0; i < Math.min(2, shuffledHot.length) && set2.length < 6; i++) {
+            if (!set2.includes(shuffledHot[i])) {
+                set2.push(shuffledHot[i]);
+            }
+        }
+        
+        // 부족하면 전체에서 보충
+        while (set2.length < 6) {
+            const allNumbers = Array.from({length: 45}, (_, i) => i + 1);
+            const available = allNumbers.filter(n => !set2.includes(n));
+            if (available.length > 0) {
+                set2.push(available[Math.floor(Math.random() * available.length)]);
+            } else break;
+        }
+        
+        sets.push({
+            numbers: set2.sort((a, b) => a - b),
+            info: `중간빈도위주 | ${this.getSimpleSetInfo(set2)}`
+        });
+    }
+    
+    // 전략 3: 안 나온 번호 위주 (3개) + 자주 나온 번호 (3개)
+    if (sets.length < 5) {
+        const set3 = [];
+        const shuffledCold = this.shuffleArray([...coldNumbers]);
+        const shuffledHot = this.shuffleArray([...hotNumbers]);
+        
+        // 안 나온 번호에서 3개
+        for (let i = 0; i < Math.min(3, shuffledCold.length); i++) {
+            set3.push(shuffledCold[i]);
+        }
+        
+        // 자주 나온 번호에서 3개
+        for (let i = 0; i < Math.min(3, shuffledHot.length) && set3.length < 6; i++) {
+            if (!set3.includes(shuffledHot[i])) {
+                set3.push(shuffledHot[i]);
+            }
+        }
+        
+        // 부족하면 중간 번호에서 보충
+        const shuffledMedium = this.shuffleArray([...mediumNumbers]);
+        for (let i = 0; i < shuffledMedium.length && set3.length < 6; i++) {
+            if (!set3.includes(shuffledMedium[i])) {
+                set3.push(shuffledMedium[i]);
+            }
+        }
+        
+        sets.push({
+            numbers: set3.sort((a, b) => a - b),
+            info: `대기번호조합 | ${this.getSimpleSetInfo(set3)}`
+        });
+    }
+    
+    // 전략 4: 열별 균형 (각 열에서 1개씩, 마지막 열 제외)
+    if (sets.length < 5) {
+        const set4 = [];
+        
+        // 1-6열에서 각각 1개씩 선택
+        for (let colIndex = 0; colIndex < 6; colIndex++) {
+            const columnNumbers = columns[colIndex];
+            const availableInColumn = columnNumbers.filter(n => !set4.includes(n));
+            
+            if (availableInColumn.length > 0) {
+                const selected = availableInColumn[Math.floor(Math.random() * availableInColumn.length)];
+                set4.push(selected);
+            }
+        }
+        
+        // 부족하면 전체에서 보충
+        while (set4.length < 6) {
+            const allNumbers = Array.from({length: 45}, (_, i) => i + 1);
+            const available = allNumbers.filter(n => !set4.includes(n));
+            if (available.length > 0) {
+                set4.push(available[Math.floor(Math.random() * available.length)]);
+            } else break;
+        }
+        
+        sets.push({
+            numbers: set4.sort((a, b) => a - b),
+            info: `열별균형 | ${this.getSimpleSetInfo(set4)}`
+        });
+    }
+    
+    // 전략 5: 완전 랜덤 (모든 번호에서)
+    if (sets.length < 5) {
+        const set5 = [];
+        const allNumbers = Array.from({length: 45}, (_, i) => i + 1);
+        const shuffledAll = this.shuffleArray([...allNumbers]);
+        
+        for (let i = 0; i < 6; i++) {
+            set5.push(shuffledAll[i]);
+        }
+        
+        sets.push({
+            numbers: set5.sort((a, b) => a - b),
+            info: `랜덤조합 | ${this.getSimpleSetInfo(set5)}`
+        });
+    }
+    
+    console.log('Generated sets:', sets);
     return sets;
 }
 
+// 배열 섞기 함수 추가
+shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+// 간단한 세트 정보 생성 함수 추가
+getSimpleSetInfo(numbers) {
+    const oddCount = numbers.filter(n => n % 2 === 1).length;
+    const sum = numbers.reduce((a, b) => a + b, 0);
+    
+    // 구간 분포
+    const ranges = {
+        low: numbers.filter(n => n <= 15).length,
+        mid: numbers.filter(n => n > 15 && n <= 30).length,
+        high: numbers.filter(n => n > 30).length
+    };
+    
+    return `홀${oddCount}짝${6-oddCount} 구간:${ranges.low}-${ranges.mid}-${ranges.high} 합계:${sum}`;
+}
 
 // 열 기반 분석 정보 생성
 getColumnBasedAnalysis(numbers, positionFrequency, columns) {
