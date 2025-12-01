@@ -542,11 +542,11 @@ class LottoAnalyzer {
             { name: '열별균형', method: 'column-balanced' },
             { name: '혼합전략1', method: 'mixed-1' },
             { name: '혼합전략2', method: 'mixed-2' },
-            { name: '중간빈도위주', method: 'medium-focused' },
-            { name: '구간균형', method: 'range-balanced' },
-            { name: '홀짝균형', method: 'odd-even-balanced' },
-            { name: '랜덤조합1', method: 'random-1' },
-            { name: '랜덤조합2', method: 'random-2' }
+            { name: '혼합전략3', method: 'mixed-3' },
+            { name: '혼합전략4', method: 'mixed-4' },
+            { name: '중간빈도위주1', method: 'medium-focused-1' },
+            { name: '중간빈도위주2', method: 'medium-focused-2' },
+            { name: '중간빈도위주3', method: 'medium-focused-3' }
         ];
         
         strategies.forEach((strategy, index) => {
@@ -619,35 +619,35 @@ class LottoAnalyzer {
                 numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 2));
                 break;
                 
-            case 'medium-focused':
-                // 중간 빈도 번호 위주
+            case 'mixed-3':
+                // 자주 나온 번호 1개 + 안 나온 번호 3개 + 중간 번호 2개
+                numbers.push(...this.getRandomSample(hotNumbers, 1));
+                numbers.push(...this.getRandomSample(coldNumbers.filter(n => !numbers.includes(n)), 3));
+                numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 2));
+                break;
+                
+            case 'mixed-4':
+                // 자주 나온 번호 2개 + 안 나온 번호 1개 + 중간 번호 3개
+                numbers.push(...this.getRandomSample(hotNumbers, 2));
+                numbers.push(...this.getRandomSample(coldNumbers.filter(n => !numbers.includes(n)), 1));
+                numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 3));
+                break;
+                
+            case 'medium-focused-1':
+                // 중간 빈도 번호 위주 (안나온 번호 1개 혼합)
+                numbers.push(...this.getRandomSample(mediumNumbers, 5));
+                numbers.push(...this.getRandomSample(coldNumbers.filter(n => !numbers.includes(n)), 1));
+                break;
+                
+            case 'medium-focused-2':
+                // 중간 빈도 번호 위주 (자주나온 번호 1개 혼합)
+                numbers.push(...this.getRandomSample(mediumNumbers, 5));
+                numbers.push(...this.getRandomSample(hotNumbers.filter(n => !numbers.includes(n)), 1));
+                break;
+                
+            case 'medium-focused-3':
+                // 중간 빈도 번호 위주 (순수 중간 빈도)
                 numbers.push(...this.getRandomSample(mediumNumbers, 6));
-                break;
-                
-            case 'range-balanced':
-                // 구간별 균형 (1-15: 2개, 16-30: 2개, 31-45: 2개)
-                const range1 = allNumbers.filter(n => n <= 15);
-                const range2 = allNumbers.filter(n => n > 15 && n <= 30);
-                const range3 = allNumbers.filter(n => n > 30);
-                
-                numbers.push(...this.getRandomSample(range1, 2));
-                numbers.push(...this.getRandomSample(range2, 2));
-                numbers.push(...this.getRandomSample(range3, 2));
-                break;
-                
-            case 'odd-even-balanced':
-                // 홀수 3개, 짝수 3개
-                const oddNumbers = allNumbers.filter(n => n % 2 === 1);
-                const evenNumbers = allNumbers.filter(n => n % 2 === 0);
-                
-                numbers.push(...this.getRandomSample(oddNumbers, 3));
-                numbers.push(...this.getRandomSample(evenNumbers, 3));
-                break;
-                
-            case 'random-1':
-            case 'random-2':
-                // 완전 랜덤
-                numbers = this.getRandomSample(allNumbers, 6);
                 break;
         }
         
