@@ -60,50 +60,71 @@ class LottoAnalyzer {
         
         this.isAnalyzing = true;
         this.showLoading(true);
+        let analysisAttempt = 0;
+        const maxAnalysisAttempts = 3;
         
-        try {
-            // 1. 연결 테스트
-            this.updateStatus('연결 상태 확인 중...');
-            const connectionOk = await this.testConnection();
-            if (!connectionOk) {
-                throw new Error('연결 테스트 실패');
+        while (analysisAttempt < maxAnalysisAttempts) {
+            try {
+                analysisAttempt++;
+                console.log(`\n분석 시도 ${analysisAttempt}/${maxAnalysisAttempts}`);
+                
+                // 1. 연결 테스트
+                this.updateStatus('연결 상태 확인 중...');
+                const connectionOk = await this.testConnection();
+                if (!connectionOk) {
+                    throw new Error('연결 테스트 실패');
+                }
+                
+                // 2. 최신 회차 확인
+                this.updateStatus('최신 회차 확인 중...');
+                const latestRound = await this.getLatestRound();
+                
+                // 3. 최신 20개 회차 데이터 수집
+                const startRound = Math.max(1, latestRound - 19); // 20개 회차
+                const endRound = latestRound;
+                
+                this.updateStatus(`📊 최신 20개 회차 (${startRound}회 ~ ${endRound}회) 데이터 수집 중...`);
+                
+                // 4. 데이터 수집 (재시도 로직 포함)
+                this.lottoData = await this.fetchLottoData(startRound, endRound);
+                
+                if (this.lottoData.length === 0) {
+                    throw new Error('데이터를 가져올 수 없습니다.');
+                }
+                
+                // 5. 데이터 분석
+                this.updateStatus('🔍 데이터 분석 중...');
+                this.analysis = this.analyzeData(this.lottoData);
+                
+                // 6. 결과 표시
+                this.displayAnalysisResults();
+                this.updateStatus(`✅ 분석 완료! 최신 ${this.lottoData.length}개 회차 데이터 분석됨`);
+                
+                // 번호 생성 버튼 활성화
+                document.getElementById('generateBtn').disabled = false;
+                
+                console.log('✅ 분석 성공!');
+                break; // 성공하면 루프 종료
+                
+            } catch (error) {
+                console.error(`분석 시도 ${analysisAttempt} 오류:`, error);
+                
+                if (analysisAttempt < maxAnalysisAttempts) {
+                    // 다음 시도 전 대기
+                    const waitTime = 3000 * analysisAttempt; // 3초, 6초, 9초
+                    this.updateStatus(`❌ ${error.message}\n${waitTime / 1000}초 후 재시도합니다... (${analysisAttempt}/${maxAnalysisAttempts})`);
+                    console.log(`${waitTime / 1000}초 후 재시도...`);
+                    await this.delay(waitTime);
+                } else {
+                    // 모든 시도 실패
+                    this.updateStatus(`❌ 분석 실패: ${error.message} (${maxAnalysisAttempts}회 재시도 후)\n잠시 후 다시 시도해주세요.`);
+                    console.error('❌ 모든 분석 시도 실패');
+                }
             }
-            
-            // 2. 최신 회차 확인
-            this.updateStatus('최신 회차 확인 중...');
-            const latestRound = await this.getLatestRound();
-            
-            // 3. 최신 20개 회차 데이터 수집
-            const startRound = Math.max(1, latestRound - 19); // 20개 회차
-            const endRound = latestRound;
-            
-            this.updateStatus(`📊 최신 20개 회차 (${startRound}회 ~ ${endRound}회) 데이터 수집 중...`);
-            
-            // 4. 데이터 수집
-            this.lottoData = await this.fetchLottoData(startRound, endRound);
-            
-            if (this.lottoData.length === 0) {
-                throw new Error('데이터를 가져올 수 없습니다.');
-            }
-            
-            // 5. 데이터 분석
-            this.updateStatus('🔍 데이터 분석 중...');
-            this.analysis = this.analyzeData(this.lottoData);
-            
-            // 6. 결과 표시
-            this.displayAnalysisResults();
-            this.updateStatus(`✅ 분석 완료! 최신 ${this.lottoData.length}개 회차 데이터 분석됨`);
-            
-            // 번호 생성 버튼 활성화
-            document.getElementById('generateBtn').disabled = false;
-            
-        } catch (error) {
-            console.error('분석 중 오류:', error);
-            this.updateStatus(`❌ ${error.message} 다시 시도해주세요.`);
-        } finally {
-            this.showLoading(false);
-            this.isAnalyzing = false;
         }
+        
+        this.showLoading(false);
+        this.isAnalyzing = false;
     }
     
     async testConnection() {
@@ -149,16 +170,22 @@ class LottoAnalyzer {
         return estimatedRound - 5;
     }
     
-    async fetchLottoData(startRound, endRound) {
+    async fetchLottoData(startRound, endRound, retryCount = 0) {
         const data = [];
+        const failedRounds = [];
         const totalRounds = endRound - startRound + 1;
+        const maxRetries = 3;
         
+        // 첫 번째 시도
         for (let round = startRound; round <= endRound; round++) {
             const roundData = await this.fetchSingleRound(round);
             
             if (roundData) {
                 data.push(roundData);
                 console.log(`✅ 회차 ${round} 수집 완료: ${roundData.numbers}`);
+            } else {
+                failedRounds.push(round);
+                console.warn(`⚠️ 회차 ${round} 수집 실패`);
             }
             
             const progress = Math.round(((round - startRound + 1) / totalRounds) * 100);
@@ -167,32 +194,112 @@ class LottoAnalyzer {
             await this.delay(400);
         }
         
+        // 실패한 회차 재시도
+        if (failedRounds.length > 0 && retryCount < maxRetries) {
+            console.log(`\n재시도 ${retryCount + 1}/${maxRetries}: 실패한 ${failedRounds.length}개 회차 재수집 중...`);
+            this.updateStatus(`⚠️ ${failedRounds.length}개 회차 재수집 중... (시도 ${retryCount + 1}/${maxRetries})`);
+            
+            // 재시도 전에 더 긴 딜레이
+            await this.delay(2000);
+            
+            for (let round of failedRounds) {
+                const roundData = await this.fetchSingleRound(round);
+                
+                if (roundData) {
+                    data.push(roundData);
+                    console.log(`✅ 재시도 - 회차 ${round} 수집 완료`);
+                    failedRounds.splice(failedRounds.indexOf(round), 1);
+                } else {
+                    console.warn(`⚠️ 재시도 - 회차 ${round} 수집 실패`);
+                }
+                
+                await this.delay(500);
+            }
+            
+            // 여전히 실패한 회차가 있으면 재귀적으로 재시도
+            if (failedRounds.length > 0) {
+                return this.fetchLottoData(startRound, endRound, retryCount + 1);
+            }
+        }
+        
+        // 최소 15개 이상의 데이터 필요
+        if (data.length < 15) {
+            throw new Error(`필요한 데이터 수집 실패: ${data.length}개/20개 (최소 15개 필요)`);
+        }
+        
+        // 부분 수집 시 경고
+        if (data.length < totalRounds) {
+            console.warn(`⚠️ 부분 수집 완료: ${data.length}개/${totalRounds}개`);
+            this.updateStatus(`⚠️ 부분 수집 완료: ${data.length}개 회차 분석 시작...`);
+            await this.delay(1000);
+        }
+        
         return data.sort((a, b) => a.round - b.round);
     }
     
     async fetchSingleRound(round) {
-        try {
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
-            const result = await response.json();
-            const data = JSON.parse(result.contents);
-            
-            if (data && data.returnValue === 'success' && data.drwtNo1) {
-                const numbers = [
-                    data.drwtNo1, data.drwtNo2, data.drwtNo3,
-                    data.drwtNo4, data.drwtNo5, data.drwtNo6
-                ];
+        // 최대 3개 프록시 시도
+        const proxies = [
+            { name: 'allorigins', url: `https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}` },
+            { name: 'thingproxy', url: `https://thingproxy.freeboard.io/fetch/${this.originalUrl}${round}` },
+            { name: 'cors-proxy', url: `https://cors-proxy.htmldriven.com/?url=${encodeURIComponent(this.originalUrl + round)}` }
+        ];
+        
+        for (let proxyAttempt = 0; proxyAttempt < proxies.length; proxyAttempt++) {
+            try {
+                const proxy = proxies[proxyAttempt];
+                console.log(`회차 ${round}: ${proxy.name} 프록시 시도 중...`);
                 
-                if (numbers.every(n => n && n >= 1 && n <= 45)) {
-                    return {
-                        round: round,
-                        date: data.drwNoDate,
-                        numbers: numbers,
-                        bonus: data.bnusNo
-                    };
+                const response = await fetch(proxy.url, { 
+                    headers: { 'Accept': 'application/json' },
+                    timeout: 10000 
+                });
+                
+                if (!response.ok) {
+                    console.warn(`회차 ${round}: ${proxy.name} HTTP ${response.status}`);
+                    continue;
                 }
+                
+                const result = await response.json();
+                
+                // allorigins 응답 처리
+                if (proxy.name === 'allorigins' && result.contents) {
+                    const data = JSON.parse(result.contents);
+                    if (this.validateRoundData(data)) {
+                        return this.extractRoundData(data, round);
+                    }
+                } else {
+                    // 직접 응답 처리
+                    if (this.validateRoundData(result)) {
+                        return this.extractRoundData(result, round);
+                    }
+                }
+            } catch (error) {
+                console.warn(`회차 ${round} ${proxies[proxyAttempt].name} 오류:`, error.message);
+                continue;
             }
-        } catch (error) {
-            console.error(`Round ${round} fetch error:`, error);
+        }
+        
+        return null;
+    }
+    
+    validateRoundData(data) {
+        return data && data.returnValue === 'success' && data.drwtNo1;
+    }
+    
+    extractRoundData(data, round) {
+        const numbers = [
+            data.drwtNo1, data.drwtNo2, data.drwtNo3,
+            data.drwtNo4, data.drwtNo5, data.drwtNo6
+        ];
+        
+        if (numbers.every(n => n && n >= 1 && n <= 45)) {
+            return {
+                round: round,
+                date: data.drwNoDate,
+                numbers: numbers,
+                bonus: data.bnusNo
+            };
         }
         
         return null;
@@ -664,9 +771,11 @@ class LottoAnalyzer {
     
     updateStatus(message) {
         const statusElement = document.getElementById('status');
+        // 줄바꿈(\n)을 <br>로 변환
+        const formattedMessage = message.replace(/\n/g, '<br>');
         statusElement.innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <span>${message}</span>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; white-space: pre-wrap; word-wrap: break-word;">
+                <div>${formattedMessage}</div>
                 ${message.includes('중...') ? '<div class="spinner"></div>' : ''}
             </div>
         `;
