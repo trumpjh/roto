@@ -1,6 +1,6 @@
 class LottoAnalyzer {
     constructor() {
-        // 여러 CORS 프록시 서비스 준비
+        // CORS 프록시 설정
         this.corsProxies = [
             'https://api.allorigins.win/get?url=',
             'https://thingproxy.freeboard.io/fetch/',
@@ -11,22 +11,33 @@ class LottoAnalyzer {
         this.originalUrl = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=";
         this.updateProxy();
         
+        // 데이터 저장
         this.lottoData = [];
         this.analysis = {};
         this.isAnalyzing = false;
+        
+        // 로또 용지 열 정의
+        this.columns = [
+            [1,2,3,4,5,6,7],           // 1열: 1~7
+            [8,9,10,11,12,13,14],      // 2열: 8~14
+            [15,16,17,18,19,20,21],    // 3열: 15~21
+            [22,23,24,25,26,27,28],    // 4열: 22~28
+            [29,30,31,32,33,34,35],    // 5열: 29~35
+            [36,37,38,39,40,41,42],    // 6열: 36~42
+            [43,44,45]                 // 7열: 43~45
+        ];
         
         this.initializeEventListeners();
     }
     
     updateProxy() {
         this.corsProxy = this.corsProxies[this.currentProxyIndex];
-        this.baseUrl = this.corsProxy + encodeURIComponent(this.originalUrl);
         console.log(`현재 프록시: ${this.corsProxy}`);
     }
     
     initializeEventListeners() {
         document.getElementById('analyzeBtn').addEventListener('click', () => this.startAnalysis());
-        document.getElementById('generateBtn').addEventListener('click', () => this.generateAllNumbers());
+        document.getElementById('generateBtn').addEventListener('click', () => this.generateRecommendations());
         
         // 탭 전환 이벤트
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -44,34 +55,6 @@ class LottoAnalyzer {
         document.getElementById(tabName).classList.add('active');
     }
     
-    async testConnection() {
-        console.log('🔍 연결 테스트 시작...');
-        this.updateStatus('연결 상태 확인 중...');
-        
-        try {
-            // 확실히 존재하는 회차로 테스트 (1000회차)
-            const testRound = 1000;
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + testRound)}`);
-            const result = await response.json();
-            const data = JSON.parse(result.contents);
-            
-            if (data.returnValue === 'success') {
-                console.log('✅ 연결 성공!');
-                this.updateStatus('연결 성공! 데이터 분석을 시작할 수 있습니다.');
-                return true;
-            } else {
-                console.log('❌ API 응답 오류:', data);
-                this.updateStatus('API 응답에 문제가 있습니다.');
-                return false;
-            }
-            
-        } catch (error) {
-            console.error('❌ 연결 실패:', error);
-            this.updateStatus('연결에 실패했습니다. 네트워크를 확인해주세요.');
-            return false;
-        }
-    }
-    
     async startAnalysis() {
         if (this.isAnalyzing) return;
         
@@ -80,6 +63,7 @@ class LottoAnalyzer {
         
         try {
             // 1. 연결 테스트
+            this.updateStatus('연결 상태 확인 중...');
             const connectionOk = await this.testConnection();
             if (!connectionOk) {
                 throw new Error('연결 테스트 실패');
@@ -89,11 +73,11 @@ class LottoAnalyzer {
             this.updateStatus('최신 회차 확인 중...');
             const latestRound = await this.getLatestRound();
             
-            // 3. 최신 15개 회차 데이터 수집
-            const startRound = Math.max(1, latestRound - 14); // 15개 회차
+            // 3. 최신 20개 회차 데이터 수집
+            const startRound = Math.max(1, latestRound - 19); // 20개 회차
             const endRound = latestRound;
             
-            this.updateStatus(`📊 최신 15개 회차 (${startRound}회 ~ ${endRound}회) 데이터 수집 중...`);
+            this.updateStatus(`📊 최신 20개 회차 (${startRound}회 ~ ${endRound}회) 데이터 수집 중...`);
             
             // 4. 데이터 수집
             this.lottoData = await this.fetchLottoData(startRound, endRound);
@@ -122,289 +106,274 @@ class LottoAnalyzer {
         }
     }
     
+    async testConnection() {
+        try {
+            const testRound = 1000;
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + testRound)}`);
+            const result = await response.json();
+            const data = JSON.parse(result.contents);
+            
+            return data.returnValue === 'success';
+        } catch (error) {
+            console.error('연결 테스트 실패:', error);
+            return false;
+        }
+    }
+    
     async getLatestRound() {
-        // 현재 날짜 기준으로 더 정확한 추정
         const currentDate = new Date();
-        const startDate = new Date('2002-12-07'); // 로또 1회차 날짜
+        const startDate = new Date('2002-12-07');
         const diffWeeks = Math.floor((currentDate - startDate) / (1000 * 60 * 60 * 24 * 7));
         const estimatedRound = diffWeeks + 1;
         
         console.log(`추정 최신 회차: ${estimatedRound}`);
         
-        // 추정 회차부터 역순으로 30개 회차 확인 (범위 확대)
+        // 추정 회차부터 역순으로 30개 회차 확인
         for (let round = estimatedRound; round > estimatedRound - 30; round--) {
             try {
-                console.log(`회차 ${round} 확인 중...`);
-                
                 const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
                 const result = await response.json();
                 const data = JSON.parse(result.contents);
-                
-                console.log(`회차 ${round} 응답:`, data);
                 
                 if (data.returnValue === 'success' && data.drwtNo1) {
                     console.log(`✅ 최신 회차 발견: ${round}회`);
                     return round;
                 }
                 
-                // API 호출 제한을 위한 딜레이
                 await this.delay(300);
-                
             } catch (error) {
-                console.error(`❌ 회차 ${round} 오류:`, error);
                 continue;
             }
         }
         
-        // 기본값으로 추정 회차에서 5를 뺀 값 사용
-        const fallbackRound = estimatedRound - 5;
-        console.log(`⚠️ 최신 회차를 찾을 수 없어 기본값 사용: ${fallbackRound}회`);
-        return fallbackRound;
+        return estimatedRound - 5;
     }
     
     async fetchLottoData(startRound, endRound) {
         const data = [];
         const totalRounds = endRound - startRound + 1;
         
-        console.log(`${startRound}회부터 ${endRound}회까지 ${totalRounds}개 회차 수집 시작`);
-        
-        // 순차적으로 데이터 수집 (안정성 향상)
         for (let round = startRound; round <= endRound; round++) {
             const roundData = await this.fetchSingleRound(round);
             
             if (roundData) {
                 data.push(roundData);
                 console.log(`✅ 회차 ${round} 수집 완료: ${roundData.numbers}`);
-            } else {
-                console.log(`❌ 회차 ${round} 수집 실패`);
             }
             
-            // 진행률 업데이트
             const progress = Math.round(((round - startRound + 1) / totalRounds) * 100);
             this.updateStatus(`데이터 수집 중... ${progress}% (${round}회)`);
             
-            // API 호출 제한을 위한 딜레이
             await this.delay(400);
         }
         
-        console.log(`총 ${data.length}개 회차 데이터 수집 완료`);
         return data.sort((a, b) => a.round - b.round);
     }
     
     async fetchSingleRound(round) {
         try {
-            // 여러 방법으로 시도
-            const methods = [
-                // 방법 1: allorigins 사용
-                async () => {
-                    const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
-                    const result = await response.json();
-                    return JSON.parse(result.contents);
-                },
-                
-                // 방법 2: thingproxy 사용
-                async () => {
-                    const response = await fetch(`https://thingproxy.freeboard.io/fetch/${this.originalUrl}${round}`);
-                    return await response.json();
-                }
-            ];
+            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(this.originalUrl + round)}`);
+            const result = await response.json();
+            const data = JSON.parse(result.contents);
             
-            // 각 방법을 순서대로 시도
-            for (let i = 0; i < methods.length; i++) {
-                try {
-                    console.log(`회차 ${round}: 방법 ${i + 1} 시도`);
-                    const data = await methods[i]();
-                    
-                    if (data && data.returnValue === 'success' && data.drwtNo1) {
-                        const numbers = [
-                            data.drwtNo1, data.drwtNo2, data.drwtNo3,
-                            data.drwtNo4, data.drwtNo5, data.drwtNo6
-                        ];
-                        
-                        if (numbers.every(n => n && n >= 1 && n <= 45)) {
-                            return {
-                                round: round,
-                                date: data.drwNoDate,
-                                numbers: numbers,
-                                bonus: data.bnusNo
-                            };
-                        }
-                    }
-                } catch (error) {
-                    console.log(`회차 ${round} 방법 ${i + 1} 실패:`, error.message);
-                    continue;
+            if (data && data.returnValue === 'success' && data.drwtNo1) {
+                const numbers = [
+                    data.drwtNo1, data.drwtNo2, data.drwtNo3,
+                    data.drwtNo4, data.drwtNo5, data.drwtNo6
+                ];
+                
+                if (numbers.every(n => n && n >= 1 && n <= 45)) {
+                    return {
+                        round: round,
+                        date: data.drwNoDate,
+                        numbers: numbers,
+                        bonus: data.bnusNo
+                    };
                 }
             }
-            
-            return null;
-            
         } catch (error) {
-            console.error(`Round ${round} 전체 오류:`, error);
-            return null;
+            console.error(`Round ${round} fetch error:`, error);
         }
+        
+        return null;
     }
     
     analyzeData(data) {
         const analysis = {
             frequency: {},
-            sumRanges: { low: 0, medium: 0, high: 0 },
-            oddEven: {},
-            numberRanges: { '1-15': 0, '16-30': 0, '31-45': 0 },
-            consecutive: 0
+            columnFrequency: {},
+            columnByRound: [],
+            hotNumbers: [],
+            coldNumbers: [],
+            totalRounds: data.length
         };
         
-        // 모든 번호 초기화
+        // 번호별 빈도 초기화
         for (let i = 1; i <= 45; i++) {
             analysis.frequency[i] = 0;
         }
         
-        data.forEach(round => {
+        // 열별 빈도 초기화
+        for (let i = 0; i < 7; i++) {
+            analysis.columnFrequency[i] = 0;
+        }
+        
+        // 각 회차별 분석
+        data.forEach((round, roundIndex) => {
             const numbers = round.numbers.sort((a, b) => a - b);
+            const roundColumns = [0, 0, 0, 0, 0, 0, 0];
             
-            // 빈도 분석
+            // 번호별 빈도 계산
             numbers.forEach(num => {
                 analysis.frequency[num]++;
-            });
-            
-            // 합계 범위 분석
-            const sum = numbers.reduce((a, b) => a + b, 0);
-            if (sum <= 120) analysis.sumRanges.low++;
-            else if (sum <= 150) analysis.sumRanges.medium++;
-            else analysis.sumRanges.high++;
-            
-            // 홀짝 분석
-            const oddCount = numbers.filter(n => n % 2 === 1).length;
-            const key = `${oddCount}odd_${6-oddCount}even`;
-            analysis.oddEven[key] = (analysis.oddEven[key] || 0) + 1;
-            
-            // 구간별 분석
-            numbers.forEach(num => {
-                if (num <= 15) analysis.numberRanges['1-15']++;
-                else if (num <= 30) analysis.numberRanges['16-30']++;
-                else analysis.numberRanges['31-45']++;
-            });
-            
-            // 연속번호 확인
-            for (let i = 0; i < numbers.length - 1; i++) {
-                if (numbers[i + 1] - numbers[i] === 1) {
-                    analysis.consecutive++;
-                    break;
+                
+                // 해당 번호가 속한 열 찾기
+                const columnIndex = this.columns.findIndex(col => col.includes(num));
+                if (columnIndex !== -1) {
+                    analysis.columnFrequency[columnIndex]++;
+                    roundColumns[columnIndex]++;
                 }
-            }
+            });
+            
+            // 회차별 열 분포 저장
+            analysis.columnByRound.push({
+                round: round.round,
+                date: round.date,
+                numbers: numbers,
+                columnDistribution: roundColumns
+            });
         });
+        
+        // 자주 나온 번호와 자주 나오지 않은 번호 분류
+        const sortedByFrequency = Object.entries(analysis.frequency)
+            .sort(([,a], [,b]) => b - a);
+        
+        analysis.hotNumbers = sortedByFrequency
+            .filter(([,freq]) => freq >= 3)
+            .map(([num, freq]) => ({ number: parseInt(num), frequency: freq }));
+        
+        analysis.coldNumbers = sortedByFrequency
+            .filter(([,freq]) => freq <= 1)
+            .map(([num, freq]) => ({ number: parseInt(num), frequency: freq }));
         
         return analysis;
     }
     
     displayAnalysisResults() {
-        this.displayFrequencyChart();
-        this.displayOddEvenChart();
-        this.displayRangeChart();
-        this.displaySumChart();
-        this.displayStatsSummary();
+        this.displayLottoHeatmap();
         this.displayHotNumbers();
         this.displayColdNumbers();
+        this.displayColumnAnalysis();
+        this.displayStatsSummary();
     }
     
-    displayFrequencyChart() {
-        const ctx = document.getElementById('frequencyChart').getContext('2d');
-        const sortedFreq = Object.entries(this.analysis.frequency)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 15);
+    displayLottoHeatmap() {
+        const totalRounds = this.analysis.totalRounds;
         
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: sortedFreq.map(([num]) => num),
-                datasets: [{
-                    label: '출현 횟수',
-                    data: sortedFreq.map(([,freq]) => freq),
-                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                    borderColor: 'rgba(102, 126, 234, 1)',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+        let html = `
+            <div class="heatmap-header">
+                <h4>최근 ${totalRounds}회차 번호별 출현 빈도</h4>
+                <p>색상이 진할수록 자주 나온 번호입니다</p>
+            </div>
+            <div class="heatmap-grid">
+        `;
+        
+        // 로또 용지 배치대로 히트맵 생성
+        this.columns.forEach((column, columnIndex) => {
+            html += `<div class="heatmap-row">`;
+            
+            column.forEach(num => {
+                const count = this.analysis.frequency[num] || 0;
+                const percentage = ((count / totalRounds) * 100).toFixed(1);
+                const heatLevel = Math.min(Math.floor(count * 1.2), 10);
+                
+                html += `
+                    <div class="heatmap-cell heat-${heatLevel}" title="번호 ${num}: ${count}회 출현 (${percentage}%)">
+                        <div class="cell-number">${num}</div>
+                        <div class="cell-count">${count}회</div>
+                        <div class="cell-percentage">${percentage}%</div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
         });
+        
+        html += `</div>`;
+        
+        document.getElementById('lottoHeatmap').innerHTML = html;
     }
     
-    displayOddEvenChart() {
-        const ctx = document.getElementById('oddEvenChart').getContext('2d');
+    displayHotNumbers() {
+        const html = this.analysis.hotNumbers.map(item => {
+            const percentage = ((item.frequency / this.analysis.totalRounds) * 100).toFixed(1);
+            return `
+                <div class="number-item">
+                    <div class="number-ball hot">${item.number}</div>
+                    <div class="number-info">
+                        <div class="number-count">${item.frequency}회</div>
+                        <div class="number-percentage">${percentage}%</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
         
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(this.analysis.oddEven),
-                datasets: [{
-                    data: Object.values(this.analysis.oddEven),
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
-        });
+        document.getElementById('hotNumbersAnalysis').innerHTML = html || '<p>자주 나온 번호가 없습니다.</p>';
     }
     
-        displayRangeChart() {
-        const ctx = document.getElementById('rangeChart').getContext('2d');
+    displayColdNumbers() {
+        const html = this.analysis.coldNumbers.map(item => {
+            const percentage = ((item.frequency / this.analysis.totalRounds) * 100).toFixed(1);
+            return `
+                <div class="number-item">
+                    <div class="number-ball cold">${item.number}</div>
+                    <div class="number-info">
+                        <div class="number-count">${item.frequency}회</div>
+                        <div class="number-percentage">${percentage}%</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
         
-        new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: Object.keys(this.analysis.numberRanges),
-                datasets: [{
-                    label: '출현 횟수',
-                    data: Object.values(this.analysis.numberRanges),
-                    backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
+        document.getElementById('coldNumbersAnalysis').innerHTML = html || '<p>자주 나오지 않은 번호가 없습니다.</p>';
     }
     
-    displaySumChart() {
-        const ctx = document.getElementById('sumChart').getContext('2d');
+    displayColumnAnalysis() {
+        let html = '';
         
-        new Chart(ctx, {
-            type: 'pie',
-            data: {
-                labels: ['낮음 (≤120)', '중간 (121-150)', '높음 (>150)'],
-                datasets: [{
-                    data: Object.values(this.analysis.sumRanges),
-                    backgroundColor: ['#4BC0C0', '#FFCE56', '#FF6384']
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false
-            }
+        // 각 열별 통계
+        this.columns.forEach((column, index) => {
+            const columnTotal = this.analysis.columnFrequency[index] || 0;
+            const avgPerRound = (columnTotal / this.analysis.totalRounds).toFixed(1);
+            const avgPerNumber = (columnTotal / column.length).toFixed(1);
+            
+            html += `
+                <div class="column-item">
+                    <div class="column-header">${index + 1}열 (${column[0]}~${column[column.length-1]})</div>
+                    <div class="column-stats">
+                        <div class="column-stat">
+                            <span class="stat-label">총 출현:</span>
+                            <span class="stat-value">${columnTotal}회</span>
+                        </div>
+                        <div class="column-stat">
+                            <span class="stat-label">회차당 평균:</span>
+                            <span class="stat-value">${avgPerRound}개</span>
+                        </div>
+                        <div class="column-stat">
+                            <span class="stat-label">번호당 평균:</span>
+                            <span class="stat-value">${avgPerNumber}회</span>
+                        </div>
+                    </div>
+                </div>
+            `;
         });
+        
+        document.getElementById('columnAnalysis').innerHTML = html;
     }
     
     displayStatsSummary() {
-        const totalRounds = this.lottoData.length;
         const totalNumbers = Object.values(this.analysis.frequency).reduce((a, b) => a + b, 0);
-        const avgFreq = totalNumbers / 45;
+        const avgFreq = (totalNumbers / 45).toFixed(1);
         
         const mostFrequent = Object.entries(this.analysis.frequency)
             .reduce(([maxNum, maxFreq], [num, freq]) => 
@@ -415,546 +384,277 @@ class LottoAnalyzer {
                 freq < minFreq ? [num, freq] : [minNum, minFreq], ['1', 999]);
         
         const html = `
-            <h3>📊 최신 15개 회차 분석 요약</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-value">${totalRounds}</div>
-                    <div class="stat-label">분석 회차</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${totalNumbers}</div>
-                    <div class="stat-label">총 번호 개수</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${mostFrequent[0]}</div>
-                    <div class="stat-label">최다 출현 번호 (${mostFrequent[1]}회)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${leastFrequent[0]}</div>
-                    <div class="stat-label">최소 출현 번호 (${leastFrequent[1]}회)</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${avgFreq.toFixed(1)}</div>
-                    <div class="stat-label">평균 출현 횟수</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-value">${this.analysis.consecutive}</div>
-                    <div class="stat-label">연속번호 포함 회차</div>
-                </div>
+            <div class="stat-item">
+                <div class="stat-value">${this.analysis.totalRounds}</div>
+                <div class="stat-label">분석 회차</div>
             </div>
-            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; text-align: center;">
-                <strong>📅 분석 기간: 최신 15개 회차</strong><br>
-                <small>더 많은 데이터가 필요하면 회차 수를 늘려보세요!</small>
+            <div class="stat-item">
+                <div class="stat-value">${totalNumbers}</div>
+                <div class="stat-label">총 번호 개수</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${mostFrequent[0]}</div>
+                <div class="stat-label">최다 출현 번호<br>(${mostFrequent[1]}회)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${leastFrequent[0]}</div>
+                <div class="stat-label">최소 출현 번호<br>(${leastFrequent[1]}회)</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${avgFreq}</div>
+                <div class="stat-label">평균 출현 횟수</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">${this.analysis.hotNumbers.length}</div>
+                <div class="stat-label">자주 나온 번호</div>
             </div>
         `;
         
         document.getElementById('statsSummary').innerHTML = html;
     }
     
-    displayHotNumbers() {
-        const hotNumbers = Object.entries(this.analysis.frequency)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 15);
-        
-        const html = hotNumbers.map(([num, freq]) => `
-            <div class="number-item">
-                <div class="number-ball hot">${num}</div>
-                <div class="number-count">${freq}회</div>
-            </div>
-        `).join('');
-        
-        document.getElementById('hotNumbersList').innerHTML = html;
-    }
-    
-    displayColdNumbers() {
-        const coldNumbers = Object.entries(this.analysis.frequency)
-            .sort(([,a], [,b]) => a - b)
-            .slice(0, 15);
-        
-        const html = coldNumbers.map(([num, freq]) => `
-            <div class="number-item">
-                <div class="number-ball cold">${num}</div>
-                <div class="number-count">${freq}회</div>
-            </div>
-        `).join('');
-        
-        document.getElementById('coldNumbersList').innerHTML = html;
-    }
-    
-    generateAllNumbers() {
+    generateRecommendations() {
         if (!this.analysis.frequency) {
             alert('먼저 데이터 분석을 실행해주세요.');
             return;
         }
         
-        // 1. 마킹 위치 분석 표시
-        this.displayMarkingPositionAnalysis();
-        
-        // 2. AI 종합 추천 (마킹 위치 기반)
-        const aiRecommendations = this.generatePositionBasedAI();
-        this.displayLottoSets('aiRecommendations', aiRecommendations);
-        
-        // 3. 자주 나온 번호 기반 추천
-        const hotRecommendations = this.generateHotNumbers();
-        this.displayLottoSets('hotRecommendations', hotRecommendations);
-        
-        // 4. 적게 나온 번호 기반 추천
-        const coldRecommendations = this.generateColdNumbers();
-        this.displayLottoSets('coldRecommendations', coldRecommendations);
-        
-        // 5. 균형잡힌 전략
-        const balancedRecommendations = this.generateBalancedNumbers();
-        this.displayLottoSets('balancedRecommendations', balancedRecommendations);
+        const recommendations = this.generate10DifferentSets();
+        this.displayRecommendations(recommendations);
+        this.displayRecommendationBasis();
     }
     
-// displayMarkingPositionAnalysis 함수에서 lottoLayout 부분 수정
-displayMarkingPositionAnalysis() {
-    // 로또 용지 위치별 출현 빈도 계산
-    const positionFrequency = {};
-    
-    // 모든 위치 초기화 (1-45)
-    for (let i = 1; i <= 45; i++) {
-        positionFrequency[i] = 0;
-    }
-    
-    // 최신 15개 회차 데이터로 위치별 빈도 계산
-    this.lottoData.forEach(round => {
-        round.numbers.forEach(num => {
-            positionFrequency[num]++;
-        });
-    });
-    
-    // 총 회차 수
-    const totalRounds = this.lottoData.length;
-    
-    // 위치별 분석
-    const hotPositions = [];
-    const coldPositions = [];
-    const patternPositions = [];
-    
-    Object.entries(positionFrequency).forEach(([position, count]) => {
-        const percentage = ((count / totalRounds) * 100).toFixed(1);
-        const positionData = {
-            position: parseInt(position),
-            count: count,
-            percentage: parseFloat(percentage)
-        };
+    generate10DifferentSets() {
+        const sets = [];
+        const usedCombinations = new Set();
         
-        if (count >= 3) {
-            hotPositions.push(positionData);
-        } else if (count === 0) {
-            coldPositions.push(positionData);
-        } else {
-            patternPositions.push(positionData);
-        }
-    });
-    
-    // HTML 생성 - 정확한 로또 용지 배치 반영
-    let html = `
-        <div class="marking-header">
-            <div class="marking-title">📍 최신 ${totalRounds}회차 마킹 위치 분석</div>
-            <div class="marking-subtitle">실제 로또 용지 배치 기준 위치별 출현 빈도 분석</div>
-        </div>
-        
-        <div class="real-lotto-grid">
-    `;
-    
-    // 정확한 로또 용지 배치 (최종 수정)
-    const lottoLayout = [
-        [1, 2, 3, 4, 5, 6, 7],           // 1열: 1~7
-        [8, 9, 10, 11, 12, 13, 14],      // 2열: 8~14
-        [15, 16, 17, 18, 19, 20, 21],    // 3열: 15~21 (수정됨)
-        [22, 23, 24, 25, 26, 27, 28],    // 4열: 22~28 (수정됨)
-        [29, 30, 31, 32, 33, 34, 35],    // 5열: 29~35 (수정됨)
-        [36, 37, 38, 39, 40, 41, 42],    // 6열: 36~42 (수정됨)
-        [43, 44, 45]                     // 7열: 43~45 (수정됨)
-    ];
-    
-    lottoLayout.forEach((row, rowIndex) => {
-        html += `<div class="lotto-row">`;
-        
-        row.forEach(num => {
-            const count = positionFrequency[num];
-            const percentage = ((count / totalRounds) * 100).toFixed(1);
-            
-            let cellClass = 'real-position-cell';
-            if (count === 0) cellClass += ' position-0';
-            else if (count === 1) cellClass += ' position-1';
-            else if (count === 2) cellClass += ' position-2';
-            else if (count === 3) cellClass += ' position-3';
-            else if (count === 4) cellClass += ' position-4';
-            else if (count === 5) cellClass += ' position-5';
-            else cellClass += ' position-high';
-            
-            html += `
-                <div class="${cellClass}" title="번호 ${num}: ${count}회 출현 (${percentage}%)">
-                    <div class="position-number">${num}</div>
-                    <div class="position-count">${count}회</div>
-                    <div class="position-percentage">${percentage}%</div>
-                </div>
-            `;
-        });
-        
-        html += `</div>`;
-    });
-    
-    html += `
-        </div>
-        
-        <div class="column-analysis">
-            <h4>📊 열별 출현 분석</h4>
-            <div class="column-stats">
-    `;
-    
-    // 정확한 열별 통계 계산 (최종 수정)
-    const columnStats = [
-        { name: '1열 (1~7)', numbers: [1,2,3,4,5,6,7] },
-        { name: '2열 (8~14)', numbers: [8,9,10,11,12,13,14] },
-        { name: '3열 (15~21)', numbers: [15,16,17,18,19,20,21] },
-        { name: '4열 (22~28)', numbers: [22,23,24,25,26,27,28] },
-        { name: '5열 (29~35)', numbers: [29,30,31,32,33,34,35] },
-        { name: '6열 (36~42)', numbers: [36,37,38,39,40,41,42] },
-        { name: '7열 (43~45)', numbers: [43,44,45] }
-    ];
-    
-    columnStats.forEach(column => {
-        const totalAppearances = column.numbers.reduce((sum, num) => sum + positionFrequency[num], 0);
-        const avgPerNumber = (totalAppearances / column.numbers.length).toFixed(1);
-        
-        html += `
-            <div class="column-stat">
-                <div class="column-name">${column.name}</div>
-                <div class="column-total">총 ${totalAppearances}회</div>
-                <div class="column-avg">평균 ${avgPerNumber}회/번호</div>
-            </div>
-        `;
-    });
-    
-    html += `
-            </div>
-        </div>
-        
-        <div class="analysis-summary">
-            <div class="summary-item hot-positions">
-                <div class="summary-title">🔥 자주 나온 위치</div>
-                <div class="summary-value">${hotPositions.length}개</div>
-                <div class="summary-description">3회 이상 출현한 위치</div>
-            </div>
-            <div class="summary-item cold-positions">
-                <div class="summary-title">❄️ 안 나온 위치</div>
-                <div class="summary-value">${coldPositions.length}개</div>
-                <div class="summary-description">한 번도 출현하지 않은 위치</div>
-            </div>
-            <div class="summary-item pattern-positions">
-                <div class="summary-title">📊 중간 위치</div>
-                <div class="summary-value">${patternPositions.length}개</div>
-                <div class="summary-description">1-2회 출현한 위치</div>
-            </div>
-        </div>
-        
-        <div class="recommendation-reason">
-            <div class="reason-title">🤖 AI 분석 기준 (실제 로또 용지 배치 반영)</div>
-            <ul class="reason-list">
-                <li class="reason-item">
-                    <span class="reason-text">자주 나온 위치 (3회+)</span>
-                    <span class="reason-score">35%</span>
-                </li>
-                <li class="reason-item">
-                    <span class="reason-text">중간 빈도 위치 (1-2회)</span>
-                    <span class="reason-score">30%</span>
-                </li>
-                <li class="reason-item">
-                    <span class="reason-text">안 나온 위치 (0회)</span>
-                    <span class="reason-score">15%</span>
-                </li>
-                <li class="reason-item">
-                    <span class="reason-text">열별 균형 (7개 열 고려)</span>
-                    <span class="reason-score">20%</span>
-                </li>
-            </ul>
-        </div>
-    `;
-    
-    document.getElementById('markingAnalysis').innerHTML = html;
-}
-
-// generatePositionBasedAI 함수에서 columns 배열 수정 (최종)
-generatePositionBasedAI() {
-    const positionFrequency = {};
-    
-    // 위치별 빈도 계산
-    for (let i = 1; i <= 45; i++) {
-        positionFrequency[i] = 0;
-    }
-    
-    this.lottoData.forEach(round => {
-        round.numbers.forEach(num => {
-            positionFrequency[num]++;
-        });
-    });
-    
-    // 정확한 로또 용지 열 정의 (최종 수정)
-    const columns = [
-        [1,2,3,4,5,6,7],                 // 1열: 1~7
-        [8,9,10,11,12,13,14],            // 2열: 8~14
-        [15,16,17,18,19,20,21],          // 3열: 15~21 (수정됨)
-        [22,23,24,25,26,27,28],          // 4열: 22~28 (수정됨)
-        [29,30,31,32,33,34,35],          // 5열: 29~35 (수정됨)
-        [36,37,38,39,40,41,42],          // 6열: 36~42 (수정됨)
-        [43,44,45]                       // 7열: 43~45 (수정됨)
-    ];
-    
-    // 위치별 점수 계산 (열 균형 고려)
-    const positionScores = {};
-    Object.entries(positionFrequency).forEach(([position, count]) => {
-        let score = 0;
-        
-        // 자주 나온 위치 (35%)
-        if (count >= 3) {
-            score += count * 0.35;
-        }
-        // 중간 빈도 위치 (30%)
-        else if (count >= 1) {
-            score += count * 0.30;
-        }
-        // 안 나온 위치 (15%)
-        else {
-            score += 0.15;
-        }
-        
-        // 열별 균형 보너스 (20%)
-        const pos = parseInt(position);
-        const columnIndex = columns.findIndex(col => col.includes(pos));
-        
-        // 각 열별로 균등한 가중치 적용 (모든 열이 7개씩, 마지막 열만 3개)
-        const columnWeights = [
-            0.20, // 1열 (7개): 1~7
-            0.20, // 2열 (7개): 8~14
-            0.20, // 3열 (7개): 15~21
-            0.20, // 4열 (7개): 22~28
-            0.20, // 5열 (7개): 29~35
-            0.20, // 6열 (7개): 36~42
-            0.15  // 7열 (3개): 43~45 (적은 번호로 인해 약간 낮음)
+        // 전략별 번호 생성
+        const strategies = [
+            { name: '자주나온번호위주', method: 'hot-focused' },
+            { name: '안나온번호위주', method: 'cold-focused' },
+            { name: '열별균형', method: 'column-balanced' },
+            { name: '혼합전략1', method: 'mixed-1' },
+            { name: '혼합전략2', method: 'mixed-2' },
+            { name: '중간빈도위주', method: 'medium-focused' },
+            { name: '구간균형', method: 'range-balanced' },
+            { name: '홀짝균형', method: 'odd-even-balanced' },
+            { name: '랜덤조합1', method: 'random-1' },
+            { name: '랜덤조합2', method: 'random-2' }
         ];
         
-        if (columnIndex !== -1) {
-            score += columnWeights[columnIndex];
-        }
-        
-        positionScores[position] = score;
-    });
-    
-    // 점수 순으로 정렬
-    const sortedPositions = Object.entries(positionScores)
-        .sort(([,a], [,b]) => b - a)
-        .map(([pos, score]) => ({
-            position: parseInt(pos),
-            score: score,
-            frequency: positionFrequency[pos],
-            column: columns.findIndex(col => col.includes(parseInt(pos))) + 1
-        }));
-    
-    const sets = [];
-    for (let i = 0; i < 5; i++) {
-        const numbers = [];
-        
-        // 상위 25개 위치에서 선택
-        const topPositions = sortedPositions.slice(0, 25);
-        
-        // 열별 균형을 고려한 선택 (각 열에서 최소 0개, 최대 2개)
-        const columnCounts = [0, 0, 0, 0, 0, 0, 0]; // 7개 열
-        
-        // 우선 각 열에서 1개씩 선택 시도
-        columns.forEach((column, colIndex) => {
-            if (numbers.length >= 6) return;
+        strategies.forEach((strategy, index) => {
+            let attempts = 0;
+            let numbers;
             
-            const availableInColumn = topPositions.filter(p => 
-                column.includes(p.position) && !numbers.includes(p.position)
-            );
+            do {
+                numbers = this.generateNumbersByStrategy(strategy.method);
+                attempts++;
+            } while (usedCombinations.has(numbers.join(',')) && attempts < 10);
             
-            if (availableInColumn.length > 0 && columnCounts[colIndex] < 2) {
-                const selected = availableInColumn[0]; // 점수가 높은 것 선택
-                numbers.push(selected.position);
-                columnCounts[colIndex]++;
+            if (numbers && numbers.length === 6) {
+                usedCombinations.add(numbers.join(','));
+                sets.push({
+                    id: index + 1,
+                    strategy: strategy.name,
+                    numbers: numbers.sort((a, b) => a - b),
+                    analysis: this.analyzeSet(numbers)
+                });
             }
         });
         
-        // 부족한 경우 상위 위치에서 추가 선택
-        while (numbers.length < 6) {
-            const available = topPositions.filter(p => !numbers.includes(p.position));
-            
-            if (available.length > 0) {
-                // 아직 2개 미만인 열의 번호 우선 선택
-                const preferredColumn = available.find(p => {
-                    const colIndex = p.column - 1;
-                    return columnCounts[colIndex] < 2;
-                });
+        return sets;
+    }
+    
+    generateNumbersByStrategy(method) {
+        const hotNumbers = this.analysis.hotNumbers.map(item => item.number);
+        const coldNumbers = this.analysis.coldNumbers.map(item => item.number);
+        const allNumbers = Array.from({length: 45}, (_, i) => i + 1);
+        const mediumNumbers = allNumbers.filter(n => 
+            !hotNumbers.includes(n) && !coldNumbers.includes(n)
+        );
+        
+        let numbers = [];
+        
+        switch(method) {
+            case 'hot-focused':
+                // 자주 나온 번호 4개 + 중간 번호 2개
+                numbers.push(...this.getRandomSample(hotNumbers, 4));
+                numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 2));
+                break;
                 
-                if (preferredColumn) {
-                    numbers.push(preferredColumn.position);
-                    columnCounts[preferredColumn.column - 1]++;
-                } else {
-                    numbers.push(available[0].position);
+            case 'cold-focused':
+                // 안 나온 번호 4개 + 자주 나온 번호 2개
+                numbers.push(...this.getRandomSample(coldNumbers, 4));
+                numbers.push(...this.getRandomSample(hotNumbers.filter(n => !numbers.includes(n)), 2));
+                break;
+                
+            case 'column-balanced':
+                // 각 열에서 1개씩 (7열 제외하고 6개)
+                for (let i = 0; i < 6; i++) {
+                    const columnNumbers = this.columns[i].filter(n => !numbers.includes(n));
+                    if (columnNumbers.length > 0) {
+                        numbers.push(this.getRandomSample(columnNumbers, 1)[0]);
+                    }
                 }
+                break;
+                
+            case 'mixed-1':
+                // 자주 나온 번호 2개 + 안 나온 번호 2개 + 중간 번호 2개
+                numbers.push(...this.getRandomSample(hotNumbers, 2));
+                numbers.push(...this.getRandomSample(coldNumbers.filter(n => !numbers.includes(n)), 2));
+                numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 2));
+                break;
+                
+            case 'mixed-2':
+                // 자주 나온 번호 3개 + 안 나온 번호 1개 + 중간 번호 2개
+                numbers.push(...this.getRandomSample(hotNumbers, 3));
+                numbers.push(...this.getRandomSample(coldNumbers.filter(n => !numbers.includes(n)), 1));
+                numbers.push(...this.getRandomSample(mediumNumbers.filter(n => !numbers.includes(n)), 2));
+                break;
+                
+            case 'medium-focused':
+                // 중간 빈도 번호 위주
+                numbers.push(...this.getRandomSample(mediumNumbers, 6));
+                break;
+                
+            case 'range-balanced':
+                // 구간별 균형 (1-15: 2개, 16-30: 2개, 31-45: 2개)
+                const range1 = allNumbers.filter(n => n <= 15);
+                const range2 = allNumbers.filter(n => n > 15 && n <= 30);
+                const range3 = allNumbers.filter(n => n > 30);
+                
+                numbers.push(...this.getRandomSample(range1, 2));
+                numbers.push(...this.getRandomSample(range2, 2));
+                numbers.push(...this.getRandomSample(range3, 2));
+                break;
+                
+            case 'odd-even-balanced':
+                // 홀수 3개, 짝수 3개
+                const oddNumbers = allNumbers.filter(n => n % 2 === 1);
+                const evenNumbers = allNumbers.filter(n => n % 2 === 0);
+                
+                numbers.push(...this.getRandomSample(oddNumbers, 3));
+                numbers.push(...this.getRandomSample(evenNumbers, 3));
+                break;
+                
+            case 'random-1':
+            case 'random-2':
+                // 완전 랜덤
+                numbers = this.getRandomSample(allNumbers, 6);
+                break;
+        }
+        
+        // 부족한 경우 보충
+        while (numbers.length < 6) {
+            const available = allNumbers.filter(n => !numbers.includes(n));
+            if (available.length > 0) {
+                numbers.push(this.getRandomSample(available, 1)[0]);
             } else {
                 break;
             }
         }
         
-        // 정렬 및 분석 정보 생성
-        const finalNumbers = numbers.slice(0, 6).sort((a, b) => a - b);
-        const analysisInfo = this.getColumnBasedAnalysis(finalNumbers, positionFrequency, columns);
-        
-        sets.push({
-            numbers: finalNumbers,
-            info: analysisInfo
-        });
+        return numbers.slice(0, 6);
     }
     
-    return sets;
-}
-
-
-// 열 기반 분석 정보 생성
-getColumnBasedAnalysis(numbers, positionFrequency, columns) {
-    // 각 번호의 출현 빈도 분석
-    const frequencyAnalysis = numbers.map(num => {
-        const count = positionFrequency[num];
-        if (count >= 3) return '자주';
-        else if (count >= 1) return '중간';
-        else return '대기';
-    });
-    
-    const hotCount = frequencyAnalysis.filter(f => f === '자주').length;
-    const mediumCount = frequencyAnalysis.filter(f => f === '중간').length;
-    const coldCount = frequencyAnalysis.filter(f => f === '대기').length;
-    
-    // 열별 분포
-    const columnDistribution = [0, 0, 0, 0, 0, 0, 0]; // 7개 열
-    numbers.forEach(num => {
-        const columnIndex = columns.findIndex(col => col.includes(num));
-        if (columnIndex !== -1) {
-            columnDistribution[columnIndex]++;
-        }
-    });
-    
-    const columnInfo = columnDistribution
-        .map((count, index) => count > 0 ? `${index + 1}열:${count}` : '')
-        .filter(info => info !== '')
-        .join(' ');
-    
-    // 홀짝 분포
-    const oddCount = numbers.filter(n => n % 2 === 1).length;
-    const sum = numbers.reduce((a, b) => a + b, 0);
-    
-    return `위치분석: 자주${hotCount} 중간${mediumCount} 대기${coldCount} | ${columnInfo} | 홀${oddCount}짝${6-oddCount} | 합계:${sum}`;  return `위치분석: 자주${hotCount} 중간${mediumCount} 대기${coldCount} | 홀${oddCount}짝${6-oddCount} | 합계:${sum}`;
-    }
-    
-    generateHotNumbers() {
-        const hotNumbers = Object.entries(this.analysis.frequency)
-            .sort(([,a], [,b]) => b - a)
-            .slice(0, 20) // 15개 회차이므로 풀을 20개로 줄임
-            .map(([num]) => parseInt(num));
-        
-        const sets = [];
-        for (let i = 0; i < 5; i++) {
-            const selected = this.getRandomSample(hotNumbers, 6);
-            sets.push({
-                numbers: selected.sort((a, b) => a - b),
-                info: this.getSetInfo(selected)
-            });
-        }
-        
-        return sets;
-    }
-    
-    generateColdNumbers() {
-        const coldNumbers = Object.entries(this.analysis.frequency)
-            .sort(([,a], [,b]) => a - b)
-            .slice(0, 20) // 15개 회차이므로 풀을 20개로 줄임
-            .map(([num]) => parseInt(num));
-        
-        const sets = [];
-        for (let i = 0; i < 5; i++) {
-            const selected = this.getRandomSample(coldNumbers, 6);
-            sets.push({
-                numbers: selected.sort((a, b) => a - b),
-                info: this.getSetInfo(selected)
-            });
-        }
-        
-        return sets;
-    }
-    
-    generateBalancedNumbers() {
-        const ranges = [
-            { start: 1, end: 15, count: 2 },
-            { start: 16, end: 30, count: 2 },
-            { start: 31, end: 45, count: 2 }
-        ];
-        
-        const sets = [];
-        for (let i = 0; i < 5; i++) {
-            const numbers = [];
-            
-            ranges.forEach(range => {
-                const rangeNumbers = Array.from(
-                    {length: range.end - range.start + 1}, 
-                    (_, i) => range.start + i
-                );
-                numbers.push(...this.getRandomSample(rangeNumbers, range.count));
-            });
-            
-            sets.push({
-                numbers: numbers.sort((a, b) => a - b),
-                info: this.getSetInfo(numbers)
-            });
-        }
-        
-        return sets;
-    }
-    
-    displayLottoSets(containerId, sets) {
-        const html = sets.map((set, index) => `
-            <div class="lotto-set fade-in">
-                <div class="set-number">${index + 1}.</div>
-                <div class="lotto-balls">
-                    ${set.numbers.map((num, i) => `<div class="lotto-ball" style="background: ${this.getBallColor(i)}">${num}</div>`).join('')}
-                </div>
-                <div class="set-info">${set.info}</div>
-            </div>
-        `).join('');
-        
-        document.getElementById(containerId).innerHTML = html;
-    }
-    
-    // 볼 색상 생성 (더 다양한 색상)
-    getBallColor(index) {
-        const colors = [
-            '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', 
-            '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
-            '#00d2d3', '#ff9f43', '#10ac84', '#ee5a24'
-        ];
-        return colors[index % colors.length];
-    }
-    
-    getSetInfo(numbers) {
+    analyzeSet(numbers) {
         const oddCount = numbers.filter(n => n % 2 === 1).length;
         const sum = numbers.reduce((a, b) => a + b, 0);
         
-        // 구간 분포 추가
+        // 구간 분포
         const ranges = {
             low: numbers.filter(n => n <= 15).length,
             mid: numbers.filter(n => n > 15 && n <= 30).length,
             high: numbers.filter(n => n > 30).length
         };
         
-        return `홀${oddCount}짝${6-oddCount} | 구간:${ranges.low}-${ranges.mid}-${ranges.high} | 합계:${sum}`;
+        // 열별 분포
+        const columnDist = [0, 0, 0, 0, 0, 0, 0];
+        numbers.forEach(num => {
+            const columnIndex = this.columns.findIndex(col => col.includes(num));
+            if (columnIndex !== -1) {
+                columnDist[columnIndex]++;
+            }
+        });
+        
+        // 빈도 분석
+        const hotCount = numbers.filter(n => 
+            this.analysis.hotNumbers.some(hot => hot.number === n)
+        ).length;
+        
+        const coldCount = numbers.filter(n => 
+            this.analysis.coldNumbers.some(cold => cold.number === n)
+        ).length;
+        
+        return {
+            oddEven: `홀${oddCount}짝${6-oddCount}`,
+            sum: sum,
+            ranges: `${ranges.low}-${ranges.mid}-${ranges.high}`,
+            columns: columnDist.map((count, index) => count > 0 ? `${index+1}열:${count}` : '').filter(s => s).join(' '),
+            frequency: `자주:${hotCount} 안나온:${coldCount} 중간:${6-hotCount-coldCount}`
+        };
+    }
+    
+    displayRecommendations(recommendations) {
+        const html = recommendations.map(rec => `
+            <div class="recommendation-set">
+                <div class="set-header">
+                    <div class="set-title">추천 ${rec.id}번</div>
+                    <div class="set-strategy">${rec.strategy}</div>
+                </div>
+                <div class="set-numbers">
+                    ${rec.numbers.map(num => `<div class="recommendation-ball">${num}</div>`).join('')}
+                </div>
+                <div class="set-analysis">
+                    <strong>분석:</strong> ${rec.analysis.oddEven} | ${rec.analysis.ranges} | 합계:${rec.analysis.sum}<br>
+                    <strong>열분포:</strong> ${rec.analysis.columns}<br>
+                    <strong>빈도:</strong> ${rec.analysis.frequency}
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('recommendedNumbers').innerHTML = html;
+    }
+    
+    displayRecommendationBasis() {
+        const html = `
+            <div class="basis-item">
+                <div class="basis-title">🔥 자주 나온 번호 활용</div>
+                <div class="basis-content">
+                    최근 20회차에서 3회 이상 출현한 번호들을 우선적으로 고려합니다. 
+                    이들 번호는 통계적으로 높은 출현 빈도를 보이고 있습니다.
+                </div>
+            </div>
+            <div class="basis-item">
+                <div class="basis-title">❄️ 안 나온 번호 고려</div>
+                <div class="basis-content">
+                    최근 20회차에서 1회 이하로 출현한 번호들도 균형있게 포함시킵니다. 
+                    확률적으로 출현 가능성이 있는 번호들입니다.
+                </div>
+            </div>
+            <div class="basis-item">
+                <div class="basis-title">📊 열별 균형 분석</div>
+                <div class="basis-content">
+                    로또 용지의 7개 열별 출현 패턴을 분석하여 균형있는 번호 선택을 합니다. 
+                    특정 열에 편중되지 않도록 조절합니다.
+                </div>
+            </div>
+            <div class="basis-item">
+                <div class="basis-title">🎯 다양한 전략 적용</div>
+                <div class="basis-content">
+                    10가지 서로 다른 전략을 적용하여 다양한 관점에서 번호를 추천합니다. 
+                    각 전략은 서로 다른 분석 기준을 가지고 있습니다.
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('recommendationBasis').innerHTML = html;
     }
     
     getRandomSample(array, count) {
+        if (array.length === 0) return [];
         const shuffled = [...array].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, count);
+        return shuffled.slice(0, Math.min(count, array.length));
     }
     
     showLoading(show) {
@@ -981,5 +681,3 @@ getColumnBasedAnalysis(numbers, positionFrequency, columns) {
 document.addEventListener('DOMContentLoaded', () => {
     new LottoAnalyzer();
 });
-
-

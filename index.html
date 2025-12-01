@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>로또 번호 분석기</title>
+    <title>로또 번호 분석기 - 20회차 분석</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -11,12 +11,12 @@
     <div class="container">
         <header>
             <h1>🎰 로또 번호 분석기</h1>
-            <p>최근 15개 회차 로또 데이터를 분석하여 번호를 추천합니다</p>
+            <p>최근 20개 회차 로또 데이터를 분석하여 10개의 다른 번호를 추천합니다</p>
         </header>
 
         <div class="controls">
-            <button id="analyzeBtn" class="btn-primary">📊 데이터 분석 시작</button>
-            <button id="generateBtn" class="btn-secondary" disabled>🎲 번호 생성</button>
+            <button id="analyzeBtn" class="btn-primary">📊 20회차 데이터 분석 시작</button>
+            <button id="generateBtn" class="btn-secondary" disabled>🎲 10개 번호 추천</button>
             <div class="loading" id="loading" style="display: none;">
                 <div class="spinner"></div>
                 <span>데이터 분석 중...</span>
@@ -27,100 +27,74 @@
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="analysis">📈 분석 결과</button>
-            <button class="tab-btn" data-tab="hot-numbers">🔥 자주 나온 번호</button>
-            <button class="tab-btn" data-tab="cold-numbers">❄️ 적게 나온 번호</button>
-            <button class="tab-btn" data-tab="recommended">🎯 AI 추천</button>
+            <button class="tab-btn" data-tab="recommendations">🎯 10개 번호 추천</button>
         </div>
 
         <div class="tab-content">
             <!-- 분석 결과 탭 -->
             <div id="analysis" class="tab-panel active">
-                <div class="analysis-grid">
-                    <div class="card">
-                        <h3>📊 번호별 출현 빈도</h3>
-                        <canvas id="frequencyChart"></canvas>
-                    </div>
-                    <div class="card">
-                        <h3>🔢 홀짝 분포</h3>
-                        <canvas id="oddEvenChart"></canvas>
-                    </div>
-                    <div class="card">
-                        <h3>📍 구간별 분포</h3>
-                        <canvas id="rangeChart"></canvas>
-                    </div>
-                    <div class="card">
-                        <h3>📈 합계 분포</h3>
-                        <canvas id="sumChart"></canvas>
+                <!-- 로또 용지 히트맵 -->
+                <div class="card">
+                    <h3>📍 최근 20회차 로또 용지 히트맵</h3>
+                    <p class="description">실제 로또 용지 배치 기준으로 번호별 출현 빈도를 시각화합니다.</p>
+                    <div id="lottoHeatmap" class="lotto-heatmap">
+                        <!-- 히트맵이 여기에 표시됩니다 -->
                     </div>
                 </div>
-                
-                <div class="stats-summary" id="statsSummary">
-                    <!-- 통계 요약이 여기에 표시됩니다 -->
-                </div>
-            </div>
 
-            <!-- 자주 나온 번호 탭 -->
-            <div id="hot-numbers" class="tab-panel">
+                <!-- 자주 나온 번호 분석 -->
                 <div class="card">
-                    <h3>🔥 자주 나온 번호 TOP 15</h3>
-                    <div id="hotNumbersList" class="number-list">
-                        <!-- 자주 나온 번호 목록 -->
+                    <h3>🔥 자주 나온 번호 분석</h3>
+                    <div id="hotNumbersAnalysis" class="numbers-analysis">
+                        <!-- 자주 나온 번호 분석 -->
                     </div>
                 </div>
-                
-                <div class="card">
-                    <h3>🔥 자주 나온 번호 기반 추천</h3>
-                    <div id="hotRecommendations" class="lotto-sets">
-                        <!-- 추천 번호 세트들 -->
-                    </div>
-                </div>
-            </div>
 
-            <!-- 적게 나온 번호 탭 -->
-            <div id="cold-numbers" class="tab-panel">
+                <!-- 자주 나오지 않은 번호 분석 -->
                 <div class="card">
-                    <h3>❄️ 적게 나온 번호 TOP 15</h3>
-                    <div id="coldNumbersList" class="number-list">
-                        <!-- 적게 나온 번호 목록 -->
+                    <h3>❄️ 자주 나오지 않은 번호 분석</h3>
+                    <div id="coldNumbersAnalysis" class="numbers-analysis">
+                        <!-- 자주 나오지 않은 번호 분석 -->
                     </div>
                 </div>
-                
+
+                <!-- 열별 출현 분석 -->
                 <div class="card">
-                    <h3>❄️ 적게 나온 번호 기반 추천</h3>
-                    <div id="coldRecommendations" class="lotto-sets">
-                        <!-- 추천 번호 세트들 -->
+                    <h3>📊 회차별 열 출현 분석</h3>
+                    <div id="columnAnalysis" class="column-analysis">
+                        <!-- 열별 분석 -->
+                    </div>
+                </div>
+
+                <!-- 통계 요약 -->
+                <div class="card">
+                    <h3>📋 분석 요약</h3>
+                    <div id="statsSummary" class="stats-summary">
+                        <!-- 통계 요약 -->
                     </div>
                 </div>
             </div>
 
-            <!-- AI 추천 탭 (완전 수정) -->
-<div id="recommended" class="tab-panel">
-    <!-- AI 종합 분석 추천 번호 (수정됨) -->
-    <div class="card">
-        <h3>🎯 AI 종합 분석 추천 번호</h3>
-        <p class="description">최신 15회차 로또 용지 마킹 위치를 기반으로 분석한 추천 번호입니다.</p>
-        
-        <!-- 마킹 위치 분석 표시 -->
-        <div id="markingAnalysis" class="marking-analysis">
-            <!-- 마킹 위치 분석이 여기에 표시됩니다 -->
-        </div>
-        
-        <!-- AI 추천 번호 세트들 -->
-        <div id="aiRecommendations" class="lotto-sets">
-            <!-- AI 추천 번호 세트들 -->
-        </div>
-    </div>
+            <!-- 10개 번호 추천 탭 -->
+            <div id="recommendations" class="tab-panel">
+                <div class="card">
+                    <h3>🎯 AI 분석 기반 10개 번호 추천</h3>
+                    <p class="description">자주 나온 번호, 자주 나오지 않은 번호, 열별 분석을 종합하여 10개의 서로 다른 번호 조합을 추천합니다.</p>
+                    <div id="recommendedNumbers" class="recommended-numbers">
+                        <!-- 10개 추천 번호가 여기에 표시됩니다 -->
+                    </div>
+                </div>
 
-    <!-- 균형잡힌 전략 번호 (유지) -->
-    <div class="card">
-        <h3>⚖️ 균형잡힌 전략 번호</h3>
-        <p class="description">각 구간(1-15, 16-30, 31-45)에서 균등하게 선택한 번호입니다.</p>
-        <div id="balancedRecommendations" class="lotto-sets">
-            <!-- 균형잡힌 번호 세트들 -->
+                <!-- 추천 근거 -->
+                <div class="card">
+                    <h3>🤖 추천 근거 및 전략</h3>
+                    <div id="recommendationBasis" class="recommendation-basis">
+                        <!-- 추천 근거 -->
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-        </div>
-        
+
         <footer>
             <div class="warning">
                 <h4>⚠️ 중요 안내사항</h4>
@@ -132,11 +106,8 @@
                 </ul>
             </div>
         </footer>
-    </div>    <!-- CORS 프록시 사용을 위한 스크립트 -->
-    <script>
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
-    </script>
-    
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
