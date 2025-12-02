@@ -379,8 +379,8 @@ class LottoAnalyzer {
         
         let html = `
             <div class="heatmap-header">
-                <h4>최근 ${totalRounds}회차 번호별 출현 빈도</h4>
-                <p>색상이 진할수록 자주 나온 번호입니다</p>
+                <h4>최근 ${totalRounds}회차 번호별 출현 빈도 - 무지개 색상</h4>
+                <p>빨강 → 주황 → 노랑 → 초록 → 파랑 → 남색 → 보라 순으로 빈도가 높아집니다</p>
             </div>
             <div class="heatmap-grid">
         `;
@@ -528,6 +528,7 @@ class LottoAnalyzer {
         
         const recommendations = this.generate10DifferentSets();
         this.displayRecommendations(recommendations);
+        this.displayLottoMarkingSheet(recommendations);
         this.displayRecommendationBasis();
     }
     
@@ -721,6 +722,49 @@ class LottoAnalyzer {
         `).join('');
         
         document.getElementById('recommendedNumbers').innerHTML = html;
+    }
+    
+    displayLottoMarkingSheet(recommendations) {
+        let html = '<div class="marking-sheets-container">';
+        
+        recommendations.forEach((rec, index) => {
+            html += `
+                <div class="marking-sheet">
+                    <div class="sheet-header">
+                        <span class="sheet-number">추천 ${rec.id}번 - ${rec.strategy}</span>
+                    </div>
+                    <div class="sheet-grid">
+            `;
+            
+            // 로또 용지 배치 (7행)
+            this.columns.forEach((column, colIndex) => {
+                html += `<div class="sheet-row">`;
+                
+                column.forEach(num => {
+                    const isMarked = rec.numbers.includes(num);
+                    const markedClass = isMarked ? 'marked' : '';
+                    const cellClass = `sheet-cell ${markedClass}`;
+                    
+                    html += `
+                        <div class="${cellClass}">
+                            <span class="cell-num">${num}</span>
+                            ${isMarked ? '<span class="mark">●</span>' : ''}
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        document.getElementById('lottoMarkingSheet').innerHTML = html;
     }
     
     displayRecommendationBasis() {
