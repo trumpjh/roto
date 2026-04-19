@@ -18,4 +18,4 @@ if (!firebase.apps.length) {
 const database = firebase.database();
 
 // 비밀번호 설정 (원하는 비밀번호로 변경하세요)
-const PASSWORD = "1234"; // 🔐 보안을 위해 변경하세요
+const PASSWORD = "20220430"; // 🔐 보안을 위해 변경하세요
