@@ -172,10 +172,13 @@ async function addLottoNumber() {
             bonus: bonusNum
         };
 
-        // 목록에 추가 (최신순으로 맨 앞에 추가)
-        lottoList.unshift(newLotto);
+        // 목록에 추가
+        lottoList.push(newLotto);
 
-        // 20개를 초과하면 가장 오래된 것부터 삭제
+        // 회차번호 기준으로 내림차순 정렬 (최신 회차가 위에)
+        lottoList.sort((a, b) => b.drawNumber - a.drawNumber);
+
+        // 20개를 초과하면 가장 낮은 회차번호부터 삭제
         if (lottoList.length > MAX_LOTTO_COUNT) {
             lottoList = lottoList.slice(0, MAX_LOTTO_COUNT);
         }
@@ -203,12 +206,15 @@ async function loadLottoNumbers() {
 
     try {
         const snapshot = await database.ref('lottoNumbers').once('value');
-        const lottoList = snapshot.val();
+        let lottoList = snapshot.val();
 
         if (!lottoList || lottoList.length === 0) {
             listDiv.innerHTML = '<p class="empty-message">저장된 로또번호가 없습니다</p>';
             return;
         }
+
+        // 회차번호 기준으로 내림차순 정렬 (최신 회차가 위에 오도록)
+        lottoList.sort((a, b) => b.drawNumber - a.drawNumber);
 
         listDiv.innerHTML = '';
 
