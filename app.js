@@ -352,14 +352,39 @@ async function analyzeLottoNumbers() {
             numberCount[i] = 0;
         }
 
+        // 열별 번호 범위 정의
+        const columns = {
+            1: { range: [1, 7], name: '1열', count: 0 },
+            2: { range: [8, 14], name: '2열', count: 0 },
+            3: { range: [15, 21], name: '3열', count: 0 },
+            4: { range: [22, 28], name: '4열', count: 0 },
+            5: { range: [29, 35], name: '5열', count: 0 },
+            6: { range: [36, 42], name: '6열', count: 0 },
+            7: { range: [43, 45], name: '7열', count: 0 }
+        };
+
         // 모든 로또 번호 집계
         lottoList.forEach(lotto => {
             lotto.numbers.forEach(num => {
                 numberCount[num]++;
+                
+                // 열별 카운트
+                for (let col in columns) {
+                    const [min, max] = columns[col].range;
+                    if (num >= min && num <= max) {
+                        columns[col].count++;
+                    }
+                }
             });
             // 보너스 번호도 따로 표시하기 위해 포함
             if (lotto.bonus) {
                 numberCount[lotto.bonus]++;
+                for (let col in columns) {
+                    const [min, max] = columns[col].range;
+                    if (lotto.bonus >= min && lotto.bonus <= max) {
+                        columns[col].count++;
+                    }
+                }
             }
         });
 
@@ -387,9 +412,33 @@ async function analyzeLottoNumbers() {
                 </div>
         </div>`;
 
+        // 열별 분석
+        html += `<div class="analysis-detail">`;
+        html += `<h3>📍 열(Column)별 분석</h3>`;
+        html += `<div class="column-analysis">`;
+
+        for (let col in columns) {
+            const colData = columns[col];
+            const percentage = ((colData.count / (totalDraws * 6)) * 100).toFixed(1);
+            const barWidth = (colData.count / (totalDraws * 6)) * 100;
+            
+            html += `<div class="column-item">
+                        <div class="column-header">
+                            <span class="column-name">${colData.name}</span>
+                            <span class="column-range">${colData.range[0]}-${colData.range[1]}</span>
+                        </div>
+                        <div class="column-bar">
+                            <div class="column-fill" style="width: ${barWidth}%"></div>
+                        </div>
+                        <span class="column-text">${colData.count}회 (${percentage}%)</span>
+                    </div>`;
+        }
+
+        html += `</div></div>`;
+
         // 출현 번호 분석
         html += `<div class="analysis-detail">`;
-        html += `<h3>📊 출현한 번호 분석</h3>`;
+        html += `<h3>📊 번호별 출현 분석</h3>`;
         html += `<div class="number-frequency">`;
 
         appearedNumbers.forEach(([num, count]) => {
