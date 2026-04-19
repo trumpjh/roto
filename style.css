@@ -147,6 +147,13 @@ button {
     margin-bottom: 20px;
 }
 
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
 .input-group label {
     display: block;
     font-weight: 600;
@@ -296,6 +303,19 @@ button {
     margin: 0 5px;
 }
 
+.item-draw-info {
+    font-size: 1.1em;
+    color: #333;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.item-draw-info strong {
+    color: #667eea;
+    font-weight: 700;
+}
+
 .item-date {
     font-size: 0.9em;
     color: #999;
@@ -346,6 +366,10 @@ button {
 
     .lotto-numbers {
         grid-template-columns: repeat(3, 1fr);
+    }
+
+    .input-row {
+        grid-template-columns: 1fr;
     }
 
     .lotto-item {

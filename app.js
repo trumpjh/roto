@@ -69,19 +69,29 @@ function showMainPage() {
 
 // 로또번호 추가
 async function addLottoNumber() {
-    const lotto1 = document.querySelectorAll('.lotto-input')[0].value;
-    const lotto2 = document.querySelectorAll('.lotto-input')[1].value;
-    const lotto3 = document.querySelectorAll('.lotto-input')[2].value;
-    const lotto4 = document.querySelectorAll('.lotto-input')[3].value;
-    const lotto5 = document.querySelectorAll('.lotto-input')[4].value;
-    const lotto6 = document.querySelectorAll('.lotto-input')[5].value;
+    const drawNumber = document.getElementById('drawNumberInput').value;
+    const drawDate = document.getElementById('drawDateInput').value;
+    
+    // 로또번호 입력값 (id 기반으로 정확하게 선택)
+    const lottoInputs = Array.from(document.querySelectorAll('.lotto-numbers input'));
+    const lotto1 = lottoInputs[0].value;
+    const lotto2 = lottoInputs[1].value;
+    const lotto3 = lottoInputs[2].value;
+    const lotto4 = lottoInputs[3].value;
+    const lotto5 = lottoInputs[4].value;
+    const lotto6 = lottoInputs[5].value;
     const bonus = document.getElementById('bonusInput').value;
 
     const messageDiv = document.getElementById('addMessage');
 
     // 입력값 검증
+    if (!drawNumber || !drawDate) {
+        showMessage(messageDiv, '회차 번호와 날짜를 입력하세요', 'error');
+        return;
+    }
+
     if (!lotto1 || !lotto2 || !lotto3 || !lotto4 || !lotto5 || !lotto6 || !bonus) {
-        showMessage(messageDiv, '모든 번호를 입력하세요', 'error');
+        showMessage(messageDiv, '모든 로또번호를 입력하세요', 'error');
         return;
     }
 
@@ -121,10 +131,12 @@ async function addLottoNumber() {
 
         // 새 로또번호 객체 생성
         const newLotto = {
+            drawNumber: parseInt(drawNumber),
+            drawDate: drawDate,
             numbers: numbers,
             bonus: bonusNum,
             timestamp: new Date().getTime(),
-            date: new Date().toLocaleString('ko-KR')
+            savedDate: new Date().toLocaleString('ko-KR')
         };
 
         // 목록에 추가 (최신순으로 맨 앞에 추가)
@@ -138,7 +150,7 @@ async function addLottoNumber() {
         // Firebase에 저장
         await database.ref('lottoNumbers').set(lottoList);
 
-        showMessage(messageDiv, '로또번호가 저장되었습니다! ✅', 'success');
+        showMessage(messageDiv, `${drawNumber}회차 로또번호가 저장되었습니다! ✅`, 'success');
 
         // 입력값 초기화
         clearInputs();
@@ -174,11 +186,10 @@ async function loadLottoNumbers() {
             const itemNumbers = document.createElement('div');
             itemNumbers.className = 'item-numbers';
 
-            // 주차 계산
-            const week = index + 1;
-            const weekText = document.createElement('div');
-            weekText.className = 'item-week';
-            weekText.textContent = `${week}주차`;
+            // 회차 정보 표시
+            const drawInfo = document.createElement('div');
+            drawInfo.className = 'item-draw-info';
+            drawInfo.innerHTML = `<strong>제${lotto.drawNumber}회차</strong> (${lotto.drawDate})`;
 
             // 번호 표시
             const numbersDisplay = document.createElement('div');
@@ -203,12 +214,12 @@ async function loadLottoNumbers() {
             bonusBadge.textContent = '보너스: ' + lotto.bonus.toString().padStart(2, '0');
             numbersDisplay.appendChild(bonusBadge);
 
-            // 날짜
+            // 저장된 날짜
             const dateDiv = document.createElement('div');
             dateDiv.className = 'item-date';
-            dateDiv.textContent = lotto.date;
+            dateDiv.textContent = `저장: ${lotto.savedDate}`;
 
-            itemNumbers.appendChild(weekText);
+            itemNumbers.appendChild(drawInfo);
             itemNumbers.appendChild(numbersDisplay);
             itemNumbers.appendChild(dateDiv);
 
@@ -257,10 +268,12 @@ async function deleteLottoNumber(index) {
 
 // 입력값 초기화
 function clearInputs() {
+    document.getElementById('drawNumberInput').value = '';
+    document.getElementById('drawDateInput').value = '';
     document.querySelectorAll('.lotto-input').forEach(input => {
         input.value = '';
     });
-    document.querySelectorAll('.lotto-input')[0].focus();
+    document.getElementById('drawNumberInput').focus();
 }
 
 // 메시지 표시
