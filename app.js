@@ -333,6 +333,97 @@ function showMessage(messageDiv, text, type) {
     }
 }
 
+// 로또 번호 분석 함수
+async function analyzeLottoNumbers() {
+    const resultDiv = document.getElementById('analysisResult');
+    
+    try {
+        const snapshot = await database.ref('lottoNumbers').once('value');
+        let lottoList = snapshot.val();
+
+        if (!lottoList || lottoList.length === 0) {
+            resultDiv.innerHTML = '<p class="error-message">분석할 로또번호가 없습니다</p>';
+            return;
+        }
+
+        // 1-45 번호별 등장 횟수 초기화
+        const numberCount = {};
+        for (let i = 1; i <= 45; i++) {
+            numberCount[i] = 0;
+        }
+
+        // 모든 로또 번호 집계
+        lottoList.forEach(lotto => {
+            lotto.numbers.forEach(num => {
+                numberCount[num]++;
+            });
+            // 보너스 번호도 따로 표시하기 위해 포함
+            if (lotto.bonus) {
+                numberCount[lotto.bonus]++;
+            }
+        });
+
+        // 통계 계산
+        const totalDraws = lottoList.length;
+        const appearedNumbers = Object.entries(numberCount).filter(([num, count]) => count > 0);
+        const notAppearedNumbers = Object.entries(numberCount).filter(([num, count]) => count === 0);
+
+        // 빈도로 정렬 (내림차순)
+        appearedNumbers.sort((a, b) => b[1] - a[1]);
+
+        // HTML 생성
+        let html = `<div class="analysis-stats">`;
+        html += `<div class="stat-item">
+                    <span class="stat-label">총 회차:</span>
+                    <span class="stat-value">${totalDraws}회</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">출현한 번호:</span>
+                    <span class="stat-value">${appearedNumbers.length}개</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">미출현 번호:</span>
+                    <span class="stat-value">${notAppearedNumbers.length}개</span>
+                </div>
+        </div>`;
+
+        // 출현 번호 분석
+        html += `<div class="analysis-detail">`;
+        html += `<h3>📊 출현한 번호 분석</h3>`;
+        html += `<div class="number-frequency">`;
+
+        appearedNumbers.forEach(([num, count]) => {
+            const percentage = ((count / (totalDraws * 6)) * 100).toFixed(1);
+            html += `<div class="frequency-item">
+                        <span class="number-circle">${num}</span>
+                        <div class="frequency-bar">
+                            <div class="frequency-fill" style="width: ${(count / (totalDraws * 6)) * 100}%"></div>
+                        </div>
+                        <span class="frequency-text">${count}회 (${percentage}%)</span>
+                    </div>`;
+        });
+
+        html += `</div></div>`;
+
+        // 미출현 번호 표시
+        html += `<div class="analysis-detail">`;
+        html += `<h3>❌ 미출현 번호 (${notAppearedNumbers.length}개)</h3>`;
+        html += `<div class="not-appeared-numbers">`;
+
+        notAppearedNumbers.forEach(([num, count]) => {
+            html += `<span class="not-appeared-badge">${num}</span>`;
+        });
+
+        html += `</div></div>`;
+
+        resultDiv.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error analyzing lotto numbers:', error);
+        resultDiv.innerHTML = '<p class="error-message">분석 중 오류가 발생했습니다</p>';
+    }
+}
+
 // Enter 키로 로그인
 document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keypress', (e) => {
