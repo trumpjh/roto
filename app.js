@@ -64,7 +64,38 @@ function showLoginPage() {
 function showMainPage() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('mainSection').style.display = 'block';
+    
+    // 회차번호 변경 시 자동 날짜 계산
+    const drawNumberInput = document.getElementById('drawNumberInput');
+    drawNumberInput.addEventListener('change', calculateDateFromDrawNumber);
+    
     loadLottoNumbers();
+}
+
+// 회차번호로부터 날짜 자동 계산
+function calculateDateFromDrawNumber() {
+    const drawNumberInput = document.getElementById('drawNumberInput');
+    const drawDateInput = document.getElementById('drawDateInput');
+    const drawNumber = parseInt(drawNumberInput.value);
+    
+    if (!drawNumber || drawNumber < 1) {
+        drawDateInput.value = '';
+        return;
+    }
+    
+    // 회차 차이 계산 (1220회차 기준)
+    const drawDifference = drawNumber - LOTTO_BASE_DRAW;
+    
+    // 날짜 계산 (7일 단위)
+    const calculatedDate = new Date(LOTTO_BASE_DATE);
+    calculatedDate.setDate(calculatedDate.getDate() + (drawDifference * 7));
+    
+    // YYYY-MM-DD 형식으로 변환
+    const year = calculatedDate.getFullYear();
+    const month = String(calculatedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(calculatedDate.getDate()).padStart(2, '0');
+    
+    drawDateInput.value = `${year}-${month}-${day}`;
 }
 
 // 로또번호 추가
@@ -85,8 +116,13 @@ async function addLottoNumber() {
     const messageDiv = document.getElementById('addMessage');
 
     // 입력값 검증
-    if (!drawNumber || !drawDate) {
-        showMessage(messageDiv, '회차 번호와 날짜를 입력하세요', 'error');
+    if (!drawNumber) {
+        showMessage(messageDiv, '회차 번호를 입력하세요', 'error');
+        return;
+    }
+
+    if (!drawDate) {
+        showMessage(messageDiv, '회차 번호로부터 날짜가 자동 계산됩니다', 'error');
         return;
     }
 
@@ -129,14 +165,11 @@ async function addLottoNumber() {
         const snapshot = await database.ref('lottoNumbers').once('value');
         let lottoList = snapshot.val() ? Object.values(snapshot.val()) : [];
 
-        // 새 로또번호 객체 생성
+        // 새 로또번호 객체 생성 (회차 번호와 로또번호만 저장)
         const newLotto = {
             drawNumber: parseInt(drawNumber),
-            drawDate: drawDate,
             numbers: numbers,
-            bonus: bonusNum,
-            timestamp: new Date().getTime(),
-            savedDate: new Date().toLocaleString('ko-KR')
+            bonus: bonusNum
         };
 
         // 목록에 추가 (최신순으로 맨 앞에 추가)
@@ -189,7 +222,18 @@ async function loadLottoNumbers() {
             // 회차 정보 표시
             const drawInfo = document.createElement('div');
             drawInfo.className = 'item-draw-info';
-            drawInfo.innerHTML = `<strong>제${lotto.drawNumber}회차</strong> (${lotto.drawDate})`;
+            
+            // 회차번호에서 날짜 계산
+            const drawDifference = lotto.drawNumber - LOTTO_BASE_DRAW;
+            const calculatedDate = new Date(LOTTO_BASE_DATE);
+            calculatedDate.setDate(calculatedDate.getDate() + (drawDifference * 7));
+            
+            const year = calculatedDate.getFullYear();
+            const month = String(calculatedDate.getMonth() + 1).padStart(2, '0');
+            const day = String(calculatedDate.getDate()).padStart(2, '0');
+            const formattedDate = `${year}.${month}.${day}`;
+            
+            drawInfo.innerHTML = `<strong>제${lotto.drawNumber}회차</strong> (${formattedDate})`;
 
             // 번호 표시
             const numbersDisplay = document.createElement('div');
@@ -214,14 +258,8 @@ async function loadLottoNumbers() {
             bonusBadge.textContent = '보너스: ' + lotto.bonus.toString().padStart(2, '0');
             numbersDisplay.appendChild(bonusBadge);
 
-            // 저장된 날짜
-            const dateDiv = document.createElement('div');
-            dateDiv.className = 'item-date';
-            dateDiv.textContent = `저장: ${lotto.savedDate}`;
-
             itemNumbers.appendChild(drawInfo);
             itemNumbers.appendChild(numbersDisplay);
-            itemNumbers.appendChild(dateDiv);
 
             // 삭제 버튼
             const deleteBtn = document.createElement('button');

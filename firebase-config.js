@@ -19,3 +19,7 @@ const database = firebase.database();
 
 // 비밀번호 설정 (원하는 비밀번호로 변경하세요)
 const PASSWORD = "20220430"; // 🔐 보안을 위해 변경하세요
+
+// 로또 기준 정보 (1220회차 = 2026.04.18)
+const LOTTO_BASE_DRAW = 1220;
+const LOTTO_BASE_DATE = new Date('2026-04-18');
