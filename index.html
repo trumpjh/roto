@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로또번호 관리</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 로그인 페이지 -->
+    <div id="loginSection" class="container login-container">
+        <div class="login-box">
+            <h1>🎰 로또번호 관리</h1>
+            <p>비밀번호를 입력하세요</p>
+            <input 
+                type="password" 
+                id="passwordInput" 
+                placeholder="비밀번호 입력" 
+                autocomplete="off"
+            >
+            <button onclick="login()">로그인</button>
+            <p id="loginError" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- 메인 페이지 -->
+    <div id="mainSection" class="container" style="display: none;">
+        <div class="header">
+            <h1>🎰 로또번호 관리</h1>
+            <button class="btn-logout" onclick="logout()">로그아웃</button>
+        </div>
+
+        <!-- 새 로또번호 입력 섹션 -->
+        <div class="input-section">
+            <h2>새로운 로또번호 등록</h2>
+            <div class="number-inputs">
+                <div class="input-group">
+                    <label>당첨번호 6개:</label>
+                    <div class="lotto-numbers">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="1">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="2">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="3">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="4">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="5">
+                        <input type="number" class="lotto-input" min="1" max="45" placeholder="6">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>보너스번호:</label>
+                    <div class="bonus-number">
+                        <input type="number" class="lotto-input" id="bonusInput" min="1" max="45" placeholder="보너스">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-add" onclick="addLottoNumber()">등록</button>
+            <p id="addMessage" class="message"></p>
+        </div>
+
+        <!-- 로또번호 목록 섹션 -->
+        <div class="list-section">
+            <h2>저장된 로또번호 (최신순)</h2>
+            <div id="lottoList" class="lotto-list">
+                <p class="loading">로또번호를 불러오는 중...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database.js"></script>
+    
+    <!-- Firebase 설정 -->
+    <script src="firebase-config.js"></script>
+    
+    <!-- 애플리케이션 스크립트 -->
+    <script src="app.js"></script>
+</body>
+</html>

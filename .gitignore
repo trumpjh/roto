@@ -1,0 +1,23 @@
+# 민감한 파일 제외
+firebase-config.js
+*.env
+*.env.local
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 로그 파일
+*.log
+npm-debug.log*
+
+# 노드 모듈 (필요시)
+node_modules/
